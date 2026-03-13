@@ -7,3 +7,6 @@ selenium==4.29.0
 webdriver-manager==4.0.2
 fastapi
 uvicorn
+bcrypt>=4.0.0
+redis>=5.0.0
+reportlab>=4.1.0
