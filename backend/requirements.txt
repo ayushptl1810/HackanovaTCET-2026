@@ -7,3 +7,4 @@ selenium==4.29.0
 webdriver-manager==4.0.2
 fastapi
 uvicorn
+python-multipart

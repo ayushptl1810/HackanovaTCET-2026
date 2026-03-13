@@ -1,3 +1,4 @@
+import asyncio
 import io
 import logging
 import os
@@ -5,14 +6,14 @@ import uuid
 from typing import Dict, List
 
 import requests
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, BackgroundTasks
 from fastapi.responses import Response, StreamingResponse
 from twilio.twiml.voice_response import Gather, VoiceResponse
 
-from agents.fuzzy_scheme_matcher import get_fuzzy_matched_schemes_for_phone
 from services.scheme_matcher_service import match_schemes_from_json, get_scheme_name, get_scheme_source
 from services.csc_locator_service import get_csc_by_pincode
 from services.sarvam_service import SarvamTTSService
+from services.scheme_matching_service import SchemeMatchingService
 
 logger = logging.getLogger(__name__)
 
@@ -265,8 +266,9 @@ async def voice_schemes_check(request: Request):
     response = VoiceResponse()
 
     if _is_registered_caller(mobile_number):
-        # Intentionally delegated to future teammate implementation.
-        matched = get_fuzzy_matched_schemes_for_phone(mobile_number=mobile_number, language_code=language)
+        matched = SchemeMatchingService.get_matched_schemes(
+            mobile_number=mobile_number, language_code=language
+        )
 
         if matched:
             top_three = matched[:3]
@@ -393,15 +395,34 @@ async def voice_csc_results(request: Request):
 
     response = VoiceResponse()
 
+    # Validate pincode
     if len(pincode) != 6 or not pincode.isdigit():
-        _append_prompt(response, request, _text(language, "pincode_prompt"), language)
         gather = _build_gather(str(request.url_for("voice_csc_results")), digits=6, timeout=10)
         _append_prompt(gather, request, _text(language, "pincode_prompt"), language)
         response.append(gather)
         return Response(content=str(response), media_type="application/xml")
 
-    centers = get_csc_by_pincode(pincode)
+    # Fetch CSC centers with timeout (5 seconds to stay safe with Twilio's 15s limit)
+    # If timed out, will use cached result on next request
+    logger.info(f"📍 Fetching CSC centers for pincode {pincode} with 5s timeout...")
+    try:
+        loop = asyncio.get_event_loop()
+        centers = await asyncio.wait_for(
+            loop.run_in_executor(None, get_csc_by_pincode, pincode),
+            timeout=5.0
+        )
+        state["csc_centers"] = centers
+        state["csc_pincode"] = pincode
+        logger.info(f"✅ CSC lookup complete for {call_sid}: found {len(centers)} centers")
+    except asyncio.TimeoutError:
+        logger.warning(f"⏱️ CSC lookup timed out after 5s for pincode {pincode}")
+        # Use any cached results from previous calls
+        centers = state.get("csc_centers", [])
+    except Exception as exc:
+        logger.exception(f"❌ CSC lookup failed: {exc}")
+        centers = []
 
+    # Format and return results
     if centers:
         lines: List[str] = []
         for idx, c in enumerate(centers[:3], start=1):
@@ -410,11 +431,59 @@ async def voice_csc_results(request: Request):
             )
         result_text = " ".join(lines)
     else:
-        result_text = "We could not find CSC details right now for this pincode. Please try again later or visit the website."
+        result_text = "We are searching for CSC details in your area. Please try again in a moment, or visit our website for more options."
 
     _append_prompt(response, request, result_text, language)
     _append_prompt(response, request, _end_line(language), language)
-    response.hangup()
+
+    # Add menu for user to repeat results or end call
+    gather = _build_gather(str(request.url_for("voice_csc_menu")), digits=1, timeout=10)
+    menu_text = _text(language, "csc_menu_prompt") if language in ["hi-IN", "mr-IN", "ta-IN", "bn-IN"] else "Press 1 to hear the centers again, or press 2 to end the call."
+    _append_prompt(gather, request, menu_text, language)
+    response.append(gather)
+
+    return Response(content=str(response), media_type="application/xml")
+
+
+@voice_router.post("/csc/menu", name="voice_csc_menu")
+async def voice_csc_menu(request: Request):
+    form = await request.form()
+    call_sid = form.get("CallSid", "default")
+    choice = (form.get("Digits") or "").strip()
+
+    state = _get_call_state(call_sid)
+    language = state.get("language", "en-IN")
+    centers = state.get("csc_centers", [])
+
+    response = VoiceResponse()
+
+    if choice == "1":
+        # Repeat centers
+        if centers:
+            lines: List[str] = []
+            for idx, c in enumerate(centers[:3], start=1):
+                lines.append(
+                    f"Center {idx}: {c.get('name', 'N/A')}, Address: {c.get('address', 'N/A')}, Contact: {c.get('contact', 'N/A')}, Distance: {c.get('distance', 'N/A')}"
+                )
+            result_text = " ".join(lines)
+            _append_prompt(response, request, result_text, language)
+        else:
+            _append_prompt(response, request, "No CSC centers found.", language)
+
+        # Ask again
+        gather = _build_gather(str(request.url_for("voice_csc_menu")), digits=1, timeout=10)
+        menu_text = "Press 1 to hear again, or press 2 to end the call."
+        _append_prompt(gather, request, menu_text, language)
+        response.append(gather)
+    elif choice == "2":
+        # End call
+        _append_prompt(response, request, "Thank you for using our service. Goodbye.", language)
+        response.hangup()
+    else:
+        # Invalid choice
+        gather = _build_gather(str(request.url_for("voice_csc_menu")), digits=1, timeout=10)
+        _append_prompt(gather, request, "Invalid option. Press 1 to hear the centers again, or press 2 to end the call.", language)
+        response.append(gather)
 
     return Response(content=str(response), media_type="application/xml")
 

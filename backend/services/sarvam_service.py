@@ -18,9 +18,9 @@ class SarvamTTSService:
 
     def generate_tts_audio(self, text: str, language: str) -> Optional[bytes]:
         """
-        Generate MP3 audio bytes from text.
+        Generate audio bytes from text using Sarvam AI TTS.
 
-        Returns None if generation fails, so callers can gracefully fallback.
+        Returns None if generation fails, so callers can gracefully fallback to Twilio.
         """
         if not text:
             return None
@@ -31,9 +31,11 @@ class SarvamTTSService:
 
         payload = {
             "text": text,
-            "language_code": language,
-            "speaker": os.getenv("SARVAM_TTS_SPEAKER", "anushka"),
-            "output_format": "mp3",
+            "target_language_code": language,
+            "speaker": os.getenv("SARVAM_TTS_SPEAKER", "shubh"),
+            "model": "bulbul:v3",
+            "pace": 1.0,
+            "output_audio_codec": "mp3",
         }
 
         headers = {
@@ -51,8 +53,22 @@ class SarvamTTSService:
             if "audio" in content_type:
                 return response.content
 
-            # Handle JSON responses that wrap audio in base64 fields.
+            # Handle JSON response with audios array (official format)
             data = response.json()
+
+            # Official format: {"request_id": "...", "audios": ["base64_audio"]}
+            audios = data.get("audios", [])
+
+            if audios and isinstance(audios, list) and len(audios) > 0:
+                audio_b64 = audios[0]
+                if isinstance(audio_b64, str) and audio_b64.strip():
+                    try:
+                        return base64.b64decode(audio_b64)
+                    except Exception as e:
+                        logger.error("Failed to decode base64 audio: %s", e)
+                        return None
+
+            # Fallback for legacy response formats
             possible_fields = [
                 data.get("audio"),
                 data.get("audio_base64"),
@@ -62,7 +78,11 @@ class SarvamTTSService:
 
             for maybe_audio in possible_fields:
                 if isinstance(maybe_audio, str) and maybe_audio.strip():
-                    return base64.b64decode(maybe_audio)
+                    try:
+                        return base64.b64decode(maybe_audio)
+                    except Exception as e:
+                        logger.error("Failed to decode base64 audio: %s", e)
+                        continue
 
             logger.error("Sarvam TTS response did not contain audio payload")
             return None
