@@ -496,21 +496,25 @@ async def voice_schemes_results(request: Request):
     state = _get_call_state(call_sid)
     state["occupation_choice"] = occupation_choice
     language = state.get("language", "en-IN")
-    _set_call_state(call_sid, state)
 
-    # Build profile dict from collected slabs
-    profile_dict = {
-        "age_slab":    AGE_SLABS.get(state.get("age_choice", "2"), "18-35"),
-        "gender":      GENDER_MAP.get(state.get("gender_choice", "3"), "O"),
-        "income_slab": INCOME_SLABS.get(state.get("income_choice", "2"), "2-5L"),
-        "occupation":  OCCUPATION_MAP.get(occupation_choice, "other"),
-        "state":       "",
-        "docs_available": "[]",
-        "verified_tier": 0,
-    }
+    age_choice = state.get("age_choice", "2")
+    gender_choice = state.get("gender_choice", "3")
+    income_choice = state.get("income_choice", "2")
 
-    # Run eligibility engine
-    matched = get_top_schemes(profile_dict, limit=3)
+    schemes = get_relevant_schemes(
+        age_range_choice=age_choice,
+        gender_choice=gender_choice,
+        income_choice=income_choice,
+        occupation_choice=occupation_choice,
+        limit=3,
+    )
+
+    if schemes:
+        scheme_names = ", ".join([s["name"] for s in schemes])
+        sources = ", ".join(sorted(set([str(s.get("source", "myScheme")) for s in schemes])))
+        result_text = f"Top matching schemes are: {scheme_names}. Sources: {sources}."
+    else:
+        result_text = "No relevant schemes found at this moment."
 
     response = VoiceResponse()
 
