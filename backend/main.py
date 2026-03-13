@@ -5,8 +5,11 @@ from typing import Optional
 import uvicorn
 import os
 from utils.notifications import send_sms, send_whatsapp
+from routes.voice_routes import voice_router
 
 app = FastAPI(title="Hacknova Backend API")
+
+app.include_router(voice_router)
 
 # Enable CORS for frontend
 app.add_middleware(

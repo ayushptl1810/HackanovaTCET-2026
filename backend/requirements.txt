@@ -3,5 +3,7 @@ python-dotenv==1.0.0
 beautifulsoup4==4.12.2
 boto3==1.26.137
 twilio==9.0.4
+selenium==4.29.0
+webdriver-manager==4.0.2
 fastapi
 uvicorn
