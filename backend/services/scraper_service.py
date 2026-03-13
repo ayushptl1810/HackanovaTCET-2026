@@ -305,10 +305,13 @@ def transform_to_standard_schema(raw_item: Dict) -> Dict[str, Any]:
 
 def save_schemes_to_file(schemes: List[Dict], output_path: str = None) -> bool:
     """Save transformed schemes to JSON file"""
+    import os
     if output_path is None:
-        import os
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        output_path = os.path.join(project_root, "schemes_database.json")
+        # Default: save to backend/data/schemes_database.json
+        output_path = os.path.normpath(
+            os.path.join(os.path.dirname(__file__), "../data/schemes_database.json")
+        )
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     try:
         with open(output_path, 'w', encoding='utf-8') as f:
@@ -351,8 +354,10 @@ def main(num_pages: int = 3, save_output: bool = True) -> List[Dict]:
 
     if save_output:
         import os
-        # Go up 3 levels: services -> backend -> project_root
-        output_path = os.path.join(os.path.dirname(__file__), "../schemes_database.json")
+        # Save inside backend/data/ so scheme_matcher_service.py can load it.
+        output_path = os.path.normpath(
+            os.path.join(os.path.dirname(__file__), "../data/schemes_database.json")
+        )
         save_schemes_to_file(final_database, output_path)
 
     return final_database

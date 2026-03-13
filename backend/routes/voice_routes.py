@@ -10,7 +10,7 @@ from fastapi.responses import Response, StreamingResponse
 from twilio.twiml.voice_response import Gather, VoiceResponse
 
 from agents.fuzzy_scheme_matcher import get_fuzzy_matched_schemes_for_phone
-from data.test_delete_data import get_relevant_schemes
+from services.scheme_matcher_service import match_schemes_from_json, get_scheme_name, get_scheme_source
 from services.csc_locator_service import get_csc_by_pincode
 from services.sarvam_service import SarvamTTSService
 
@@ -358,7 +358,8 @@ async def voice_schemes_results(request: Request):
     gender_choice = state.get("gender_choice", "3")
     income_choice = state.get("income_choice", "2")
 
-    schemes = get_relevant_schemes(
+    # Match against scraped schemes_database.json (falls back to test_delete_data if JSON not yet generated)
+    schemes = match_schemes_from_json(
         age_range_choice=age_choice,
         gender_choice=gender_choice,
         income_choice=income_choice,
@@ -367,9 +368,9 @@ async def voice_schemes_results(request: Request):
     )
 
     if schemes:
-        scheme_names = ", ".join([s["name"] for s in schemes])
-        sources = ", ".join(sorted(set([str(s.get("source", "myScheme")) for s in schemes])))
-        result_text = f"Top matching schemes are: {scheme_names}. Sources: {sources}."
+        scheme_names = ", ".join([get_scheme_name(s) for s in schemes])
+        sources = ", ".join(sorted(set([get_scheme_source(s) for s in schemes])))
+        result_text = f"Top matching schemes are: {scheme_names}. Source: {sources}."
     else:
         result_text = "No relevant schemes found at this moment."
 

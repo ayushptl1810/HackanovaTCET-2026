@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import FastAPI, HTTPException, Body, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
@@ -42,6 +42,36 @@ class CSCLogin(BaseModel):
 @app.get("/")
 async def root():
     return {"message": "Hacknova Backend is running"}
+
+
+@app.post("/api/scraper/run")
+async def run_scraper(background_tasks: BackgroundTasks, num_pages: int = 3):
+    """
+    Trigger myScheme.gov.in scraper in background.
+    Saves results to backend/data/schemes_database.json.
+    num_pages: how many pages to scrape (each page ~10 schemes). Default 3.
+    """
+    from services.scraper_service import main as run_scraper_main
+    background_tasks.add_task(run_scraper_main, num_pages=num_pages, save_output=True)
+    return {
+        "message": f"Scraper started in background for {num_pages} pages (~{num_pages * 10} schemes)",
+        "output_file": "backend/data/schemes_database.json"
+    }
+
+
+@app.get("/api/scraper/schemes")
+async def get_scraped_schemes():
+    """Return all schemes currently stored in schemes_database.json."""
+    import json
+    schemes_path = os.path.join(os.path.dirname(__file__), "data", "schemes_database.json")
+    if not os.path.exists(schemes_path):
+        raise HTTPException(
+            status_code=404,
+            detail="schemes_database.json not found. Run /api/scraper/run first."
+        )
+    with open(schemes_path, encoding="utf-8") as f:
+        schemes = json.load(f)
+    return {"count": len(schemes), "schemes": schemes}
 
 @app.post("/api/login/citizen")
 async def citizen_login(data: CitizenLogin):
