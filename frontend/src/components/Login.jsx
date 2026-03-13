@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { User, ShieldCheck, Smartphone, Lock, ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import loginVid from "../assets/login_bounce.mp4";
 
-const Login = () => {
+const Login = ({ onLoginSuccess }) => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("citizen"); // 'citizen' or 'csc'
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const [formData, setFormData] = useState({
     mobile_number: "",
     pin: "",
@@ -14,25 +16,16 @@ const Login = () => {
   });
   const videoRef = useRef(null);
 
-  const IndianPalette = {
-    saffron: "#FF9933",
-    green: "#128807",
-    navy: "#000080",
-    gold: "#FFD700",
-  };
-
   const handleInputChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
-    if (error) setError("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError("");
 
     const endpoint =
       activeTab === "citizen" ?
@@ -54,13 +47,16 @@ const Login = () => {
       const data = await response.json();
 
       if (response.ok) {
-        alert(`Login Successful! Welcome, ${data.user.name}`);
-        // Redirect or set user state here
+        toast.success(
+          `Welcome back, ${activeTab === "citizen" ? "Citizen" : "Partner"}!`,
+        );
+        onLoginSuccess();
+        navigate("/citizen-dashboard");
       } else {
-        setError(data.detail || "Login failed. Please try again.");
+        toast.error(data.detail || "Login failed. Please try again.");
       }
     } catch (err) {
-      setError("Unable to connect to server. Is the backend running?");
+      toast.error("Unable to connect to server. Is the backend running?");
     } finally {
       setLoading(false);
     }
@@ -68,7 +64,7 @@ const Login = () => {
 
   const handleVideoSpeed = () => {
     if (videoRef.current) {
-      videoRef.current.playbackRate = 0.5; // 2x slower - less "strict" than 5x
+      videoRef.current.playbackRate = 0.5;
     }
   };
 
@@ -92,20 +88,14 @@ const Login = () => {
             onLoadedMetadata={handleVideoSpeed}
             className="w-full h-full object-cover opacity-60"
           />
-          {/* Visual overlays */}
           <div className="absolute inset-0 bg-gradient-to-tr from-orange-500/10 via-transparent to-green-500/10 mix-blend-overlay"></div>
           <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px]"></div>
-          {/* Subtle noise for quality */}
           <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')]"></div>
         </div>
-
-        {/* Floating placeholder for your model */}
-        <div className="relative z-10 w-full h-full">
-          {/* Your 3D Model will go here */}
-        </div>
+        <div className="relative z-10 w-full h-full"></div>
       </div>
 
-      {/* Right side: Login form container - Refined Theme */}
+      {/* Right side: Login form container */}
       <div className="w-full lg:w-[540px] flex flex-col bg-[#07090e] z-10 p-8 md:p-16 relative">
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
 
@@ -131,10 +121,7 @@ const Login = () => {
         {/* Tab Switcher */}
         <div className="flex p-1.5 bg-white/[0.03] border border-white/5 rounded-2xl mb-10 overflow-hidden">
           <button
-            onClick={() => {
-              setActiveTab("citizen");
-              setError("");
-            }}
+            onClick={() => setActiveTab("citizen")}
             className={`flex-1 flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl text-xs font-bold uppercase tracking-widest transition-all duration-300 relative ${
               activeTab === "citizen" ? "text-white" : (
                 "text-white/30 hover:text-white/60"
@@ -148,10 +135,7 @@ const Login = () => {
             <span className="relative z-10">Citizen</span>
           </button>
           <button
-            onClick={() => {
-              setActiveTab("csc");
-              setError("");
-            }}
+            onClick={() => setActiveTab("csc")}
             className={`flex-1 flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl text-xs font-bold uppercase tracking-widest transition-all duration-300 relative ${
               activeTab === "csc" ? "text-white" : (
                 "text-white/30 hover:text-white/60"
@@ -165,13 +149,6 @@ const Login = () => {
             <span className="relative z-10">CSC User</span>
           </button>
         </div>
-
-        {/* Error Message */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-2xl text-red-500 text-xs font-bold uppercase tracking-widest text-center animate-pulse">
-            {error}
-          </div>
-        )}
 
         {/* Form Area */}
         <form onSubmit={handleSubmit} className="space-y-8 flex-1">
@@ -290,7 +267,7 @@ const Login = () => {
                     activeTab === "citizen" ? "#FF9933" : "#000080",
                   boxShadow:
                     activeTab === "citizen" ?
-                      "0 15px 30px -5px rgba(255, 153, 51, 0.3)"
+                      "0 15px 30px -5px rgba(255,153,51,0.3)"
                     : "0 15px 30px -5px rgba(0, 0, 128, 0.3)",
                 }}
               ></div>
@@ -313,26 +290,22 @@ const Login = () => {
           </div>
         </form>
 
-        {/* Footer */}
-        <div className="mt-12 text-center">
-          <div className="flex flex-col items-center gap-6">
-            <div className="flex items-center justify-center gap-10">
-              {["Help", "Privacy", "Security"].map((item) => (
-                <button
-                  key={item}
-                  className="text-[10px] font-bold text-white/50 uppercase tracking-[0.2em] hover:text-white/80 transition-colors"
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-            <p className="text-[10px] font-bold text-white/60 uppercase tracking-[0.4em] leading-relaxed">
-              NIC Portal Infrastructure <br />
-              <span className="text-[9px] text-white/40 font-medium tracking-normal">
-                Copyright © 2026 Ministry of IT, India
-              </span>
-            </p>
+        <div className="mt-12 text-center text-[10px] font-bold text-white/50 uppercase tracking-[0.2em]">
+          <div className="flex items-center justify-center gap-10 mb-6">
+            <button className="hover:text-white transition-colors">Help</button>
+            <button className="hover:text-white transition-colors">
+              Privacy
+            </button>
+            <button className="hover:text-white transition-colors">
+              Security
+            </button>
           </div>
+          <p className="tracking-[0.4em] leading-relaxed">
+            NIC Portal Infrastructure <br />
+            <span className="text-[9px] text-white/40 font-medium tracking-normal">
+              Copyright © 2026 Ministry of IT, India
+            </span>
+          </p>
         </div>
       </div>
     </div>
