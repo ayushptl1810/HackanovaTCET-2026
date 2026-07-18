@@ -26,7 +26,19 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         import logging
         logging.getLogger(__name__).warning("Scheme cache warm failed: %s", exc)
+    # Start the live ingestion scheduler (no-op unless INGESTION_ENABLED).
+    try:
+        from services.scheduler import start_scheduler
+        start_scheduler()
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning("Scheduler start failed: %s", exc)
     yield
+    try:
+        from services.scheduler import stop_scheduler
+        stop_scheduler()
+    except Exception:
+        pass
 
 
 app = FastAPI(title="Hacknova Backend API", lifespan=lifespan)
@@ -93,6 +105,45 @@ async def run_scraper(background_tasks: BackgroundTasks, num_pages: int = 3):
         "message": f"Scraper started in background for {num_pages} pages (~{num_pages * 10} schemes)",
         "output_file": "backend/data/schemes_database.json",
     }
+
+
+@app.post("/api/schemes/ingest")
+async def ingest_schemes(background_tasks: BackgroundTasks, pages: int = 3):
+    """
+    Run one live ingestion cycle now: crawl → diff → enrich new/changed →
+    atomic cache swap. Runs in the background; poll /api/schemes/cache/status.
+    """
+    def _run():
+        from services.ingestion import run_ingestion
+        run_ingestion(pages=pages, enrich=True)
+
+    background_tasks.add_task(_run)
+    return {"message": f"Ingestion cycle started (pages={pages})"}
+
+
+@app.get("/api/schemes/scheduler/status")
+async def scheduler_status_route():
+    """Ingestion scheduler status (enabled/running/interval)."""
+    from services.scheduler import scheduler_status
+    return scheduler_status()
+
+
+@app.post("/api/schemes/enrich")
+async def enrich_schemes(background_tasks: BackgroundTasks):
+    """
+    Run the agentic extractor over the current schemes to (re)build structured
+    eligibility_rules, then publish the enriched set to the warm cache.
+    Runs in the background (LLM calls per scheme); poll /api/schemes/cache/status.
+    """
+    def _enrich_all():
+        from services.scheme_cache import get_schemes, set_schemes
+        from services.extractor import enrich_scheme
+        schemes = get_schemes(force=True)
+        enriched = [enrich_scheme(s) for s in schemes]
+        set_schemes(enriched)
+
+    background_tasks.add_task(_enrich_all)
+    return {"message": "Scheme enrichment started in background"}
 
 
 @app.get("/api/schemes/cache/status")

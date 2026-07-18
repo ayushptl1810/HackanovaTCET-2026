@@ -68,6 +68,16 @@ class Settings(BaseSettings):
     # is decoded WITHOUT signature verification (dev only — never in production).
     digilocker_jwks_url: str = ""
 
+    # --- Agentic scheme extractor (Groq, OpenAI-compatible) ---
+    groq_api_key: str = ""
+    groq_base_url: str = "https://api.groq.com/openai/v1"
+    groq_model: str = "llama-3.3-70b-versatile"
+
+    # --- Ingestion scheduler (live refresh) ---
+    ingestion_enabled: bool = False       # set true to auto-crawl on a schedule
+    ingestion_interval_hours: float = 24  # how often to run the pipeline
+    ingestion_pages: int = 3              # myScheme pages to crawl per run
+
     # --- DPDP / data governance ---
     consent_policy_version: str = "1.0"
     data_retention_days: int = 1825  # 5 years default; tune per legal guidance
