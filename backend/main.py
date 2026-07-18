@@ -10,6 +10,7 @@ from utils.notifications import send_sms, send_whatsapp
 from routes.voice_routes import voice_router
 from routes.digilocker_routes import digilocker_router
 from routes.kyc_routes import kyc_router
+from routes.citizen_routes import citizen_router
 from db.models import init_db
 from services.auth_service import register_citizen, login_citizen
 
@@ -26,6 +27,7 @@ app = FastAPI(title="Hacknova Backend API", lifespan=lifespan)
 app.include_router(voice_router)
 app.include_router(digilocker_router)
 app.include_router(kyc_router)
+app.include_router(citizen_router)
 
 # Enable CORS for frontend
 app.add_middleware(
@@ -116,9 +118,13 @@ async def citizen_login(data: CitizenLogin):
     if profile is None:
         raise HTTPException(status_code=401, detail="Invalid mobile number or PIN")
 
+    from core.security import create_access_token
+    token = create_access_token(subject=data.mobile_number, role="citizen")
     return {
         "success": True,
         "message": "Login successful",
+        "access_token": token,
+        "token_type": "bearer",
         "user": {**profile, "type": "citizen"},
     }
 
