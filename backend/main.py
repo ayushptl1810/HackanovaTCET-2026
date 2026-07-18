@@ -19,6 +19,13 @@ from services.auth_service import register_citizen, login_citizen
 async def lifespan(app: FastAPI):
     # Create SQLite tables on startup (safe to call repeatedly).
     init_db()
+    # Warm the scheme cache so the very first search is already fast.
+    try:
+        from services.scheme_cache import warm
+        warm()
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning("Scheme cache warm failed: %s", exc)
     yield
 
 
@@ -50,6 +57,7 @@ class CitizenRegister(BaseModel):
     age_slab: str = ""
     gender: str = ""
     income_slab: str = ""
+    annual_income: int = 0   # exact ₹/year (optional) → definitive eligibility
     occupation: str = ""
 
 class CitizenLogin(BaseModel):
@@ -73,11 +81,32 @@ async def run_scraper(background_tasks: BackgroundTasks, num_pages: int = 3):
     num_pages: how many pages to scrape (each page ~10 schemes). Default 3.
     """
     from services.scraper_service import main as run_scraper_main
-    background_tasks.add_task(run_scraper_main, num_pages=num_pages, save_output=True)
+
+    def _scrape_then_refresh(pages: int):
+        run_scraper_main(num_pages=pages, save_output=True)
+        # Publish fresh data to the warm cache (atomic swap) so search is current.
+        from services.scheme_cache import refresh
+        refresh()
+
+    background_tasks.add_task(_scrape_then_refresh, num_pages)
     return {
         "message": f"Scraper started in background for {num_pages} pages (~{num_pages * 10} schemes)",
-        "output_file": "backend/data/schemes_database.json"
+        "output_file": "backend/data/schemes_database.json",
     }
+
+
+@app.get("/api/schemes/cache/status")
+async def scheme_cache_status():
+    """Warm-cache status: scheme count, source (redis/file/ingest), and age."""
+    from services.scheme_cache import cache_status
+    return cache_status()
+
+
+@app.post("/api/schemes/cache/refresh")
+async def scheme_cache_refresh():
+    """Force-reload the scheme cache from source (Redis/file)."""
+    from services.scheme_cache import refresh
+    return refresh()
 
 
 @app.get("/api/scraper/schemes")
@@ -104,6 +133,7 @@ async def citizen_register(data: CitizenRegister):
             age_choice=data.age_slab,
             gender_choice=data.gender,
             income_choice=data.income_slab,
+            annual_income=data.annual_income,
             occupation_choice=data.occupation,
         )
         return {"success": True, "message": "Registration successful", "profile": profile}

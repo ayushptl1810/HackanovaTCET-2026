@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS citizen_profiles (
     age_slab          TEXT DEFAULT '',
     gender            TEXT DEFAULT '',
     income_slab       TEXT DEFAULT '',
+    annual_income     INTEGER DEFAULT 0,
     occupation        TEXT DEFAULT '',
     state             TEXT DEFAULT '',
     preferred_lang    TEXT DEFAULT 'hi',

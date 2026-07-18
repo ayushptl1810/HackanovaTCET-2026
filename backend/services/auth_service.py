@@ -38,9 +38,13 @@ def register_citizen(
     income_choice: str = "",
     occupation_choice: str = "",
     preferred_lang: str = "hi",
+    annual_income: int = 0,
 ) -> Dict[str, Any]:
     """
     Create a new citizen_profiles row (verified_tier=0).
+
+    ``annual_income`` (exact ₹/year, optional) makes eligibility checks
+    definitive; when 0/absent we fall back to the coarser income_slab range.
 
     Returns the created profile dict (without sensitive fields).
     Raises ValueError if the phone is already registered.
@@ -58,14 +62,15 @@ def register_citizen(
         conn.execute(
             """INSERT INTO citizen_profiles
                (phone_hmac, pin_hash, age_slab, gender, income_slab,
-                occupation, preferred_lang, verified_tier)
-               VALUES (?, ?, ?, ?, ?, ?, ?, 0)""",
+                annual_income, occupation, preferred_lang, verified_tier)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)""",
             (
                 hmac_key,
                 pin_hashed,
                 AGE_SLABS.get(age_choice, age_choice),
                 GENDER_MAP.get(gender_choice, gender_choice),
                 INCOME_SLABS.get(income_choice, income_choice),
+                int(annual_income or 0),
                 OCCUPATION_MAP.get(occupation_choice, occupation_choice),
                 preferred_lang,
             ),
@@ -142,6 +147,7 @@ def get_profile_slabs(phone: str) -> Optional[Dict[str, str]]:
         "age_slab": profile.get("age_slab", ""),
         "gender": profile.get("gender", ""),
         "income_slab": profile.get("income_slab", ""),
+        "annual_income": profile.get("annual_income", 0),
         "occupation": profile.get("occupation", ""),
         "state": profile.get("state", ""),
         "docs_available": profile.get("docs_available", "[]"),

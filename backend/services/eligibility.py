@@ -70,8 +70,21 @@ class EligibilityResult:
 # --- Field resolution ------------------------------------------------------
 
 def _numeric_range(field_name: str, profile: Dict[str, Any]) -> Optional[Tuple[float, float]]:
-    """Return the (min,max) numeric range implied by the citizen's slab, if any."""
+    """
+    Return the (min,max) numeric range implied by the citizen's data.
+
+    If an *exact* value is known (annual_income), we return a zero-width range
+    (point) so the operator resolves to a definitive PASS/FAIL, not UNKNOWN.
+    Otherwise we fall back to the coarse slab range.
+    """
     if field_name in ("income", "income_slab"):
+        exact = profile.get("annual_income") or 0
+        try:
+            exact = float(exact)
+        except (TypeError, ValueError):
+            exact = 0
+        if exact > 0:
+            return (exact, exact)  # point → definitive comparison
         slab = str(profile.get("income_slab", "")).strip().lower()
         return _INCOME_SLAB_RANGES.get(slab)
     if field_name in ("age", "age_slab"):

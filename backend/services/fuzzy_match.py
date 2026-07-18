@@ -138,14 +138,12 @@ def get_top_schemes(
     Returns:
         List[SchemeResult] sorted by match_score descending.
     """
-    schemes = _load_schemes()
+    # Warm cache: no file read / no conflict-graph rebuild on the request path.
+    from services.scheme_cache import get_schemes as _get_cached_schemes
+    schemes = _get_cached_schemes()
     if not schemes:
         logger.warning("No schemes loaded for matching")
         return []
-
-    # Keep the conflict graph in sync with whatever scheme set we just loaded.
-    from services.conflict_graph import build_conflict_map
-    build_conflict_map(schemes)
 
     if enrolled_scheme_ids is None:
         enrolled_scheme_ids = []
