@@ -78,6 +78,11 @@ class Settings(BaseSettings):
     ingestion_interval_hours: float = 24  # how often to run the pipeline
     ingestion_pages: int = 3              # myScheme pages to crawl per run
 
+    # --- Semantic search ---
+    # embedder: auto (neural if available, else tfidf) | neural | tfidf
+    semantic_embedder: str = "auto"
+    embedding_model: str = "all-MiniLM-L6-v2"
+
     # --- DPDP / data governance ---
     consent_policy_version: str = "1.0"
     data_retention_days: int = 1825  # 5 years default; tune per legal guidance

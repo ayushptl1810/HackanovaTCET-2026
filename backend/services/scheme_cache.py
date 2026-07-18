@@ -105,6 +105,12 @@ def set_schemes(schemes: List[Dict], persist_redis: bool = True) -> None:
     with _lock:
         _state.update(schemes=schemes, loaded_at=time.time(), source="ingest")
     logger.info("Scheme cache updated via ingestion: %d schemes", len(schemes))
+    # Precompute the semantic index for the new set (keeps search latency low).
+    try:
+        from services.semantic import reindex
+        reindex(schemes)
+    except Exception as exc:
+        logger.warning("Semantic reindex skipped: %s", exc)
 
 
 def refresh() -> Dict[str, Any]:
@@ -114,8 +120,14 @@ def refresh() -> Dict[str, Any]:
 
 
 def warm() -> None:
-    """Load the cache at startup so the first request is already fast."""
-    get_schemes(force=True)
+    """Load the cache AND build the semantic index at startup, so the first
+    search (and the first semantic query) is already fast."""
+    schemes = get_schemes(force=True)
+    try:
+        from services.semantic import reindex
+        reindex(schemes)
+    except Exception as exc:
+        logger.warning("Semantic warm/reindex skipped: %s", exc)
 
 
 def cache_status() -> Dict[str, Any]:

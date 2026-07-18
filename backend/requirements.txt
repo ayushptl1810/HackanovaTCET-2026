@@ -18,3 +18,7 @@ pydantic-settings>=2.1.0
 pyjwt>=2.8.0
 slowapi>=0.1.9                # rate limiting
 apscheduler>=3.10.0          # ingestion scheduler
+# --- Semantic search ---
+numpy>=1.24.0
+scikit-learn>=1.3.0                 # TF-IDF fallback embedder
+sentence-transformers>=2.2.0       # neural embedder (recommended; needs torch)
