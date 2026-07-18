@@ -1,6 +1,9 @@
 .env
 venv
 schemes_database.json
+haqse.db
+haqse.db-wal
+haqse.db-shm
 .DS_Store
 __pycache__
 .venv

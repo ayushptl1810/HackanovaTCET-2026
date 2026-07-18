@@ -161,14 +161,21 @@ def _parse_phone_number(from_number: str) -> str:
 
 def _is_registered_caller(phone_number: str) -> bool:
     """
-    Keeps database-check as an endpoint call (no local DB mock for this branch).
+    Check whether the caller already has a stored citizen profile.
 
-    Expected response shape from future service:
-    {"exists": true}
+    Uses the local SQLite-backed auth service. Falls back to an optional
+    external lookup endpoint (CITIZEN_DB_LOOKUP_URL) if configured, for
+    deployments where the citizen DB lives in a separate service.
     """
+    try:
+        from services.auth_service import is_registered
+        if is_registered(phone_number):
+            return True
+    except Exception as exc:
+        logger.warning("Local caller lookup failed: %s", exc)
+
     lookup_url = os.getenv("CITIZEN_DB_LOOKUP_URL")
     if not lookup_url:
-        logger.info("CITIZEN_DB_LOOKUP_URL not configured; treating caller as new")
         return False
 
     try:

@@ -8,3 +8,12 @@ webdriver-manager==4.0.2
 fastapi
 uvicorn
 python-multipart
+bcrypt>=4.0.0
+redis>=5.0.0
+# --- Production data & auth layer ---
+sqlalchemy>=2.0.0
+alembic>=1.13.0
+psycopg[binary]>=3.1.0        # PostgreSQL driver (prod)
+pydantic-settings>=2.1.0
+pyjwt>=2.8.0
+slowapi>=0.1.9                # rate limiting

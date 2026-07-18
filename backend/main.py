@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException, Body, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -6,10 +8,22 @@ import uvicorn
 import os
 from utils.notifications import send_sms, send_whatsapp
 from routes.voice_routes import voice_router
+from routes.digilocker_routes import digilocker_router
+from db.models import init_db
+from services.auth_service import register_citizen, login_citizen
 
-app = FastAPI(title="Hacknova Backend API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Create SQLite tables on startup (safe to call repeatedly).
+    init_db()
+    yield
+
+
+app = FastAPI(title="Hacknova Backend API", lifespan=lifespan)
 
 app.include_router(voice_router)
+app.include_router(digilocker_router)
 
 # Enable CORS for frontend
 app.add_middleware(
@@ -20,16 +34,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mock databases
-MOCK_CITIZENS = {
-    "9876543210": {"pin": "123456", "name": "Rajesh Kumar"},
-    "7208494565": {"pin": "000000", "name": "Ayush Patel"}
-}
-
+# Mock CSC operator directory (kept until a real CSC dashboard/auth is built).
 MOCK_CSC_USERS = {
     "CSC12345": {"password": "password123", "name": "Jan Seva Kendra - Mumbai"},
     "CSC67890": {"password": "csc_password", "name": "Digital Seva - Delhi"}
 }
+
+class CitizenRegister(BaseModel):
+    mobile_number: str
+    pin: str
+    age_slab: str = ""
+    gender: str = ""
+    income_slab: str = ""
+    occupation: str = ""
 
 class CitizenLogin(BaseModel):
     mobile_number: str
@@ -73,22 +90,34 @@ async def get_scraped_schemes():
         schemes = json.load(f)
     return {"count": len(schemes), "schemes": schemes}
 
+@app.post("/api/auth/register")
+async def citizen_register(data: CitizenRegister):
+    """Register a new citizen with a bcrypt-hashed PIN (SQLite-backed)."""
+    try:
+        profile = register_citizen(
+            phone=data.mobile_number,
+            pin=data.pin,
+            age_choice=data.age_slab,
+            gender_choice=data.gender,
+            income_choice=data.income_slab,
+            occupation_choice=data.occupation,
+        )
+        return {"success": True, "message": "Registration successful", "profile": profile}
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+
 @app.post("/api/login/citizen")
 async def citizen_login(data: CitizenLogin):
-    user = MOCK_CITIZENS.get(data.mobile_number)
-    if not user or user["pin"] != data.pin:
+    """PIN-based login with bcrypt verification against the citizen DB."""
+    profile = login_citizen(data.mobile_number, data.pin)
+    if profile is None:
         raise HTTPException(status_code=401, detail="Invalid mobile number or PIN")
-    
-    # Optional: Send a notification on login
-    # send_sms(data.mobile_number, f"Hello {user['name']}, you have successfully logged in to the portal.")
-    
+
     return {
         "success": True,
         "message": "Login successful",
-        "user": {
-            "name": user["name"],
-            "type": "citizen"
-        }
+        "user": {**profile, "type": "citizen"},
     }
 
 @app.post("/api/login/csc")
