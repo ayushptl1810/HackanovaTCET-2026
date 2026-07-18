@@ -27,6 +27,8 @@ class SchemeResult:
     benefit_amount: str         # "₹6,000/year" or "Variable"
     category: str
     conflicts_with: list
+    eligibility: str = "needs_info"   # eligible | not_eligible | needs_info
+    reasons: list = None              # per-rule outcomes (field/operator/value/outcome)
 
 
 # ---------------------------------------------------------------------------
@@ -121,6 +123,7 @@ def get_top_schemes(
     limit: int = 10,
     exclude_conflicts: bool = True,
     enrolled_scheme_ids: Optional[List[str]] = None,
+    include_ineligible: bool = False,
 ) -> List[SchemeResult]:
     """
     Match a citizen profile against all known schemes.
@@ -154,23 +157,32 @@ def get_top_schemes(
             excluded |= get_all_conflicts(eid)
         excluded |= set(enrolled_scheme_ids)
 
+    from services.eligibility import evaluate_scheme, NOT_ELIGIBLE, ELIGIBLE
+    from dataclasses import asdict
+
     results: List[SchemeResult] = []
     for scheme in schemes:
         sid = scheme.get("scheme_id", "")
         if sid in excluded:
             continue
 
-        score = _score_scheme(profile_dict, scheme)
+        elig = evaluate_scheme(profile_dict, scheme)
+        if elig.verdict == NOT_ELIGIBLE and not include_ineligible:
+            continue  # keep only schemes the citizen can (or might) actually get
+
         benefits = scheme.get("benefits", {})
         result = SchemeResult(
             scheme_id=sid,
             name=scheme.get("name", "Unknown"),
-            match_score=round(score, 3),
+            match_score=elig.score,
             benefit_amount=benefits.get("description", "Variable") if isinstance(benefits, dict) else str(benefits),
             category=scheme.get("category", "General"),
             conflicts_with=list(conflict_map.get(sid, [])),
+            eligibility=elig.verdict,
+            reasons=[asdict(r) for r in elig.reasons],
         )
         results.append(result)
 
-    results.sort(key=lambda r: r.match_score, reverse=True)
+    # Rank: confirmed-eligible first, then by score (needs_info below eligible).
+    results.sort(key=lambda r: (r.eligibility != ELIGIBLE, -r.match_score))
     return results[:limit]

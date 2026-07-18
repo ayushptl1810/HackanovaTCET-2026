@@ -43,10 +43,12 @@ async def my_schemes(
             {
                 "scheme_id": r.scheme_id,
                 "name": r.name,
+                "eligibility": r.eligibility,
                 "match_score": r.match_score,
                 "benefit_amount": r.benefit_amount,
                 "category": r.category,
                 "conflicts_with": r.conflicts_with,
+                "reasons": r.reasons,
             }
             for r in results
         ],
