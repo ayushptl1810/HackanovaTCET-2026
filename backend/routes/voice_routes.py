@@ -63,11 +63,11 @@ PROMPTS = {
         "bn-IN": "সিটিজেন ওয়েলফেয়ার সার্ভিসে স্বাগতম। ইংরেজির জন্য 1 চাপুন। হিন্দির জন্য 2। মরাঠির জন্য 3। তামিলের জন্য 4। বাংলা জন্য 5 চাপুন।",
     },
     "main_menu": {
-        "en-IN": "Press 1 to know welfare schemes. Press 2 to find nearby CSC by pincode.",
-        "hi-IN": "योजनाओं की जानकारी के लिए 1 दबाएं। पिनकोड से नज़दीकी सीएससी खोजने के लिए 2 दबाएं।",
-        "mr-IN": "योजनांची माहिती मिळवण्यासाठी 1 दाबा. पिनकोडने जवळचे CSC शोधण्यासाठी 2 दाबा.",
-        "ta-IN": "திட்ட விவரங்களுக்கு 1 அழுத்தவும். பின்கோட் மூலம் அருகிலுள்ள CSC-ஐ கண்டுபிடிக்க 2 அழுத்தவும்.",
-        "bn-IN": "স্কিম জানতে 1 চাপুন। পিনকোড দিয়ে নিকটবর্তী CSC খুঁজতে 2 চাপুন।",
+        "en-IN": "Press 1 to know welfare schemes. Press 2 to find nearby CSC by pincode. Press 3 to describe your need in your own words.",
+        "hi-IN": "योजनाओं की जानकारी के लिए 1 दबाएं। पिनकोड से नज़दीकी सीएससी खोजने के लिए 2 दबाएं। अपनी ज़रूरत अपने शब्दों में बताने के लिए 3 दबाएं।",
+        "mr-IN": "योजनांची माहिती मिळवण्यासाठी 1 दाबा. पिनकोडने जवळचे CSC शोधण्यासाठी 2 दाबा. तुमची गरज तुमच्या शब्दांत सांगण्यासाठी 3 दाबा.",
+        "ta-IN": "திட்ட விவரங்களுக்கு 1 அழுத்தவும். பின்கோட் மூலம் அருகிலுள்ள CSC-ஐ கண்டுபிடிக்க 2 அழுத்தவும். உங்கள் தேவையை உங்கள் சொந்த வார்த்தைகளில் சொல்ல 3 அழுத்தவும்.",
+        "bn-IN": "স্কিম জানতে 1 চাপুন। পিনকোড দিয়ে নিকটবর্তী CSC খুঁজতে 2 চাপুন। নিজের ভাষায় আপনার প্রয়োজন বলতে 3 চাপুন।",
     },
     "age_menu": {
         "en-IN": "Select age range. Press 1 for below 18. Press 2 for 18 to 35. Press 3 for 36 to 59. Press 4 for 60 and above.",
@@ -252,6 +252,9 @@ async def voice_option_selected(request: Request):
         _append_prompt(gather, request, _text(language, "pincode_prompt"), language)
         response.append(gather)
         response.redirect(str(request.url_for("voice_option_selected")), method="POST")
+    elif choice == "3":
+        # Voice-driven semantic search: let the caller speak their need.
+        response.redirect(str(request.url_for("voice_search_start")), method="POST")
     else:
         gather = _build_gather(str(request.url_for("voice_option_selected")), digits=1)
         _append_prompt(gather, request, _text(language, "main_menu"), language)
@@ -492,6 +495,127 @@ async def voice_csc_menu(request: Request):
         _append_prompt(gather, request, "Invalid option. Press 1 to hear the centers again, or press 2 to end the call.", language)
         response.append(gather)
 
+    return Response(content=str(response), media_type="application/xml")
+
+
+# ---------------------------------------------------------------------------
+# Voice-driven semantic search (ASR) — lets low-literacy callers SPEAK their
+# need instead of pressing digits. Flow:
+#   /search/start  → prompt + <Record> the caller's spoken need
+#   /search/results → download recording → Sarvam ASR → semantic search
+#                     → eligibility → speak the top matches
+# ---------------------------------------------------------------------------
+
+_SEARCH_PROMPT = {
+    "en-IN": "After the beep, tell us in a few words what help you need. For example, money for my child's education.",
+    "hi-IN": "बीप के बाद, कुछ शब्दों में बताइए कि आपको किस मदद की ज़रूरत है। जैसे, मेरे बच्चे की पढ़ाई के लिए पैसे।",
+    "mr-IN": "बीप नंतर, थोडक्यात सांगा तुम्हाला कोणती मदत हवी आहे. उदाहरणार्थ, माझ्या मुलाच्या शिक्षणासाठी पैसे.",
+    "ta-IN": "பீப் ஒலிக்குப் பிறகு, உங்களுக்கு என்ன உதவி தேவை என்பதை சில வார்த்தைகளில் சொல்லுங்கள்.",
+    "bn-IN": "বীপের পরে, কয়েকটি শব্দে বলুন আপনার কী সাহায্য দরকার। যেমন, আমার সন্তানের পড়াশোনার জন্য টাকা।",
+}
+
+
+def _download_twilio_recording(recording_url: str) -> bytes:
+    """Fetch a Twilio recording (WAV) using the account credentials."""
+    sid = os.getenv("TWILIO_ACCOUNT_SID")
+    token = os.getenv("TWILIO_AUTH_TOKEN")
+    url = recording_url if recording_url.endswith((".wav", ".mp3")) else recording_url + ".wav"
+    auth = (sid, token) if sid and token else None
+    for _ in range(3):  # recording may lag a moment behind the callback
+        r = requests.get(url, auth=auth, timeout=20)
+        if r.status_code == 200 and r.content:
+            return r.content
+    return b""
+
+
+@voice_router.post("/search/start", name="voice_search_start")
+async def voice_search_start(request: Request):
+    """Prompt the caller to speak their need, then record it."""
+    form = await request.form()
+    call_sid = form.get("CallSid", "")
+    language = _get_call_state(call_sid).get("language", "en-IN")
+
+    response = VoiceResponse()
+    prompt = _SEARCH_PROMPT.get(language, _SEARCH_PROMPT["en-IN"])
+    _append_prompt(response, request, prompt, language)
+    response.record(
+        action=str(request.url_for("voice_search_results")),
+        method="POST",
+        max_length=10,
+        play_beep=True,
+        timeout=3,
+        trim="trim-silence",
+    )
+    return Response(content=str(response), media_type="application/xml")
+
+
+@voice_router.post("/search/results", name="voice_search_results")
+async def voice_search_results(request: Request):
+    """Transcribe the recording (Sarvam ASR) → semantic search → speak matches."""
+    form = await request.form()
+    call_sid = form.get("CallSid", "")
+    from_number = _parse_phone_number(form.get("From", ""))
+    recording_url = form.get("RecordingUrl", "")
+    language = _get_call_state(call_sid).get("language", "en-IN")
+
+    response = VoiceResponse()
+
+    # 1) Speech → text (auto-detect language; reply in the caller's language)
+    transcript = ""
+    audio = _download_twilio_recording(recording_url) if recording_url else b""
+    if audio:
+        from services.sarvam_service import SarvamASRService
+        transcript, detected = SarvamASRService().transcribe_detailed(audio, language="unknown")
+        transcript = transcript or ""
+        if detected:
+            language = detected                 # speak results back in their language
+            _get_call_state(call_sid)["language"] = detected
+
+    if not transcript:
+        _append_prompt(response, request, "Sorry, we could not understand. Please try again.", language)
+        gather = _build_gather(str(request.url_for("voice_search_start")), digits=1, timeout=8)
+        _append_prompt(gather, request, "Press any key to try again.", language)
+        response.append(gather)
+        return Response(content=str(response), media_type="application/xml")
+
+    logger.info("Voice search transcript: %r", transcript)
+
+    # 2) Semantic search + eligibility for this caller
+    try:
+        from services.semantic import search as semantic_search
+        from services.eligibility import evaluate_scheme, ELIGIBLE
+        from services.auth_service import get_profile_slabs
+        from services.scheme_cache import get_schemes
+
+        slabs = get_profile_slabs(from_number) or {}
+        by_id = {s.get("scheme_id"): s for s in get_schemes()}
+        hits = semantic_search(transcript, top_k=10)
+        ranked = []
+        for sid, sim in hits:
+            scheme = by_id.get(sid)
+            if not scheme:
+                continue
+            verdict = evaluate_scheme(slabs, scheme).verdict
+            if verdict != "not_eligible":
+                ranked.append((scheme.get("name", ""), verdict, sim))
+        ranked.sort(key=lambda r: (r[1] != ELIGIBLE, -r[2]))
+    except Exception as exc:
+        logger.exception("Voice semantic search failed: %s", exc)
+        ranked = []
+
+    # 3) Speak results
+    if ranked:
+        top = ranked[:3]
+        spoken = f"We found {len(top)} schemes for you. "
+        for i, (name, _v, _s) in enumerate(top, start=1):
+            spoken += f"Scheme {i}: {name}. "
+        _append_prompt(response, request, spoken, language)
+    else:
+        _append_prompt(response, request, "We could not find a matching scheme for your request.", language)
+
+    gather = _build_gather(str(request.url_for("voice_search_start")), digits=1, timeout=8)
+    _append_prompt(gather, request, "Press any key to search again, or hang up to end.", language)
+    response.append(gather)
     return Response(content=str(response), media_type="application/xml")
 
 

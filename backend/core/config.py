@@ -81,7 +81,9 @@ class Settings(BaseSettings):
     # --- Semantic search ---
     # embedder: auto (neural if available, else tfidf) | neural | tfidf
     semantic_embedder: str = "auto"
-    embedding_model: str = "all-MiniLM-L6-v2"
+    # Multilingual model → a Hindi/Tamil/Bengali query matches English scheme text
+    # cross-lingually. Essential for vernacular voice search.
+    embedding_model: str = "paraphrase-multilingual-MiniLM-L12-v2"
 
     # --- DPDP / data governance ---
     consent_policy_version: str = "1.0"

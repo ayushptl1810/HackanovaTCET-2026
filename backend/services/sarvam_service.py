@@ -90,3 +90,53 @@ class SarvamTTSService:
         except Exception as exc:
             logger.exception("Sarvam TTS generation failed: %s", exc)
             return None
+
+
+class SarvamASRService:
+    """Thin wrapper for Sarvam AI Speech-to-Text (saarika) — the ASR that lets
+    low-literacy callers speak their need instead of pressing keypad digits."""
+
+    def __init__(self) -> None:
+        self.api_key = os.getenv("SARVAM_API_KEY")
+        self.stt_url = os.getenv("SARVAM_STT_URL", "https://api.sarvam.ai/speech-to-text")
+        self.model = os.getenv("SARVAM_STT_MODEL", "saarika:v2.5")
+
+    def transcribe_detailed(self, audio_bytes: bytes, language: str = "unknown",
+                            filename: str = "audio.wav",
+                            content_type: str = "audio/wav") -> tuple:
+        """
+        Transcribe spoken audio. Returns (transcript, detected_language_code).
+        ``language`` is a Sarvam code (e.g. "hi-IN"); "unknown" auto-detects.
+        Returns (None, None) on failure.
+        """
+        if not self.api_key:
+            logger.warning("SARVAM_API_KEY not found; skipping ASR")
+            return None, None
+        if not audio_bytes:
+            return None, None
+        try:
+            resp = requests.post(
+                self.stt_url,
+                headers={"api-subscription-key": self.api_key},
+                data={"model": self.model, "language_code": language},
+                files={"file": (filename, audio_bytes, content_type)},
+                timeout=45,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            d = data.get("data") or {}
+            transcript = data.get("transcript") or d.get("transcript")
+            detected = data.get("language_code") or d.get("language_code")
+            if transcript:
+                return transcript.strip(), detected
+            logger.error("Sarvam ASR response had no transcript: %s", str(data)[:200])
+            return None, None
+        except Exception as exc:
+            logger.exception("Sarvam ASR transcription failed: %s", exc)
+            return None, None
+
+    def transcribe(self, audio_bytes: bytes, language: str = "unknown",
+                   filename: str = "audio.wav", content_type: str = "audio/wav") -> Optional[str]:
+        """Transcribe spoken audio to text (transcript only)."""
+        text, _lang = self.transcribe_detailed(audio_bytes, language, filename, content_type)
+        return text
