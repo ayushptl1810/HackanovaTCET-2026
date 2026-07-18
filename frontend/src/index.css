@@ -1,1 +1,84 @@
 @import "tailwindcss";
+
+/* ------------------------------------------------------------------ */
+/* Haqq — light, Indian-government-style design system                  */
+/* ------------------------------------------------------------------ */
+:root {
+  --gov-navy: #0b3d91;      /* primary deep government blue */
+  --gov-blue: #1c6dd0;      /* interactive blue */
+  --gov-blue-dark: #08306b;
+  --saffron: #f47216;       /* tricolor saffron accent */
+  --green: #0f8a3c;         /* tricolor green accent */
+  --ink: #1f2a37;           /* body text */
+  --muted: #5b6472;         /* secondary text */
+  --bg: #f4f6fa;            /* page background */
+  --card: #ffffff;
+  --border: #dfe4ec;
+  --ring: #b9cdf0;
+
+  --font-size-scale: 1;     /* controlled by A- A A+ */
+}
+
+html { font-size: calc(16px * var(--font-size-scale)); }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Inter", "Noto Sans Devanagari", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Tricolor strip (saffron / white / green) */
+.tricolor {
+  height: 4px;
+  background: linear-gradient(
+    to right,
+    var(--saffron) 0 33.33%,
+    #ffffff 33.33% 66.66%,
+    var(--green) 66.66% 100%
+  );
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  font-weight: 600; border-radius: 0.5rem; cursor: pointer;
+  padding: 0.625rem 1.1rem; transition: all 0.15s ease;
+  border: 1px solid transparent; font-size: 0.95rem;
+}
+.btn-primary { background: var(--gov-navy); color: #fff; }
+.btn-primary:hover { background: var(--gov-blue-dark); }
+.btn-saffron { background: var(--saffron); color: #fff; }
+.btn-saffron:hover { filter: brightness(0.94); }
+.btn-outline { background: #fff; color: var(--gov-navy); border-color: var(--border); }
+.btn-outline:hover { border-color: var(--gov-blue); background: #f0f5ff; }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* Cards */
+.card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 0.75rem; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+
+/* Inputs */
+.field {
+  width: 100%; padding: 0.65rem 0.85rem; border: 1px solid var(--border);
+  border-radius: 0.5rem; font-size: 1rem; background: #fff; color: var(--ink);
+  outline: none; transition: border 0.15s, box-shadow 0.15s;
+}
+.field:focus { border-color: var(--gov-blue); box-shadow: 0 0 0 3px var(--ring); }
+
+/* Eligibility badges */
+.badge { display: inline-flex; align-items: center; gap: .35rem; font-size: .75rem;
+  font-weight: 600; padding: .2rem .6rem; border-radius: 999px; }
+.badge-eligible { background: #e7f6ec; color: #0f6f31; }
+.badge-needs { background: #fff4e5; color: #9a5b00; }
+.badge-not { background: #fdeaea; color: #a12622; }
+
+/* Accessibility: visible focus for keyboard users */
+a:focus-visible, button:focus-visible, .field:focus-visible {
+  outline: 2px solid var(--gov-blue); outline-offset: 2px;
+}
+
+.container-gov { max-width: 1180px; margin: 0 auto; padding: 0 1.25rem; }
