@@ -63,8 +63,13 @@ class DigiLockerProvider(ABC):
         purpose: Optional[str] = None,
         consent_valid_till: Optional[int] = None,
         doc_types: Optional[List[str]] = None,
+        login_hint: Optional[str] = None,
     ) -> str:
-        """Build the DigiLocker authorize URL (PKCE S256) to redirect the user to."""
+        """Build the DigiLocker authorize URL (PKCE S256) to redirect the user to.
+
+        ``login_hint`` is a standard OIDC param; the mock uses it to select which
+        synthetic citizen logs in. The real provider may pass it through or ignore it.
+        """
 
     @abstractmethod
     def exchange_code(self, code: str, code_verifier: str) -> TokenBundle:

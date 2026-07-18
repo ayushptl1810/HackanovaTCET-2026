@@ -9,6 +9,7 @@ import os
 from utils.notifications import send_sms, send_whatsapp
 from routes.voice_routes import voice_router
 from routes.digilocker_routes import digilocker_router
+from routes.kyc_routes import kyc_router
 from db.models import init_db
 from services.auth_service import register_citizen, login_citizen
 
@@ -24,6 +25,7 @@ app = FastAPI(title="Hacknova Backend API", lifespan=lifespan)
 
 app.include_router(voice_router)
 app.include_router(digilocker_router)
+app.include_router(kyc_router)
 
 # Enable CORS for frontend
 app.add_middleware(

@@ -1,0 +1,49 @@
+{
+  "_comment": "Synthetic DigiLocker dataset for local dev/testing. ALL data is fake — no real citizens. Aadhaar numbers are masked and non-real. Never use in production.",
+  "citizens": [
+    {
+      "id": "ayush",
+      "digilockerid": "DL-123e4567-e89b-12d3-a456-426655440001",
+      "name": "Ayush Patel",
+      "dob": "14081991",
+      "gender": "M",
+      "masked_aadhaar": "xxxxxxxx4521",
+      "pan_number": "ABCDK1232G",
+      "address": "New Delhi, Delhi",
+      "documents": [
+        {"name": "Aadhaar Card", "uri": "in.gov.uidai-ADHAR-4521", "doctype": "ADHAR", "description": "Aadhaar Card", "issuer": "UIDAI", "issuerid": "in.gov.uidai", "mime": "application/pdf,application/xml", "date": "2019-06-01T10:00:00Z"},
+        {"name": "PAN Card", "uri": "in.gov.pan-PANCR-ABCDK1232G", "doctype": "PANCR", "description": "PAN Card", "issuer": "Income Tax Department", "issuerid": "in.gov.pan", "mime": "application/pdf", "date": "2018-03-15T10:00:00Z"},
+        {"name": "Class XII Marksheet", "uri": "in.gov.cbse-HSCER-201412345678", "doctype": "HSCER", "description": "Class XII Marksheet", "issuer": "CBSE", "issuerid": "in.gov.cbse", "mime": "application/pdf", "date": "2015-05-12T15:50:38Z"}
+      ]
+    },
+    {
+      "id": "sunita",
+      "digilockerid": "DL-123e4567-e89b-12d3-a456-426655440002",
+      "name": "Sunita Devi",
+      "dob": "02021975",
+      "gender": "F",
+      "masked_aadhaar": "xxxxxxxx8890",
+      "pan_number": "PQRSK9911L",
+      "address": "Nagpur, Maharashtra",
+      "documents": [
+        {"name": "Aadhaar Card", "uri": "in.gov.uidai-ADHAR-8890", "doctype": "ADHAR", "description": "Aadhaar Card", "issuer": "UIDAI", "issuerid": "in.gov.uidai", "mime": "application/pdf,application/xml", "date": "2020-01-20T10:00:00Z"},
+        {"name": "Income Certificate", "uri": "in.gov.maha-INCER-55220011", "doctype": "INCER", "description": "Income Certificate", "issuer": "Maharashtra eDistrict", "issuerid": "in.gov.maha", "mime": "application/pdf,application/xml", "date": "2023-07-10T10:00:00Z"},
+        {"name": "Ration Card", "uri": "in.gov.maha-RATCR-77441122", "doctype": "RATCR", "description": "Ration Card", "issuer": "Maharashtra PDS", "issuerid": "in.gov.maha", "mime": "application/pdf", "date": "2021-11-05T10:00:00Z"}
+      ]
+    },
+    {
+      "id": "ramesh",
+      "digilockerid": "DL-123e4567-e89b-12d3-a456-426655440003",
+      "name": "Ramesh Kumar",
+      "dob": "30121962",
+      "gender": "M",
+      "masked_aadhaar": "xxxxxxxx3307",
+      "pan_number": "LMNOK4455P",
+      "address": "Patna, Bihar",
+      "documents": [
+        {"name": "Aadhaar Card", "uri": "in.gov.uidai-ADHAR-3307", "doctype": "ADHAR", "description": "Aadhaar Card", "issuer": "UIDAI", "issuerid": "in.gov.uidai", "mime": "application/pdf,application/xml", "date": "2018-09-12T10:00:00Z"},
+        {"name": "Senior Citizen Certificate", "uri": "in.gov.bihar-SRCTZ-99001122", "doctype": "SRCTZ", "description": "Senior Citizen Certificate", "issuer": "Bihar eDistrict", "issuerid": "in.gov.bihar", "mime": "application/pdf", "date": "2022-02-18T10:00:00Z"}
+      ]
+    }
+  ]
+}

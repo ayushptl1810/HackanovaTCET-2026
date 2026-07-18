@@ -56,6 +56,7 @@ class MeriPehchaanDigiLockerProvider(DigiLockerProvider):
         purpose: Optional[str] = None,
         consent_valid_till: Optional[int] = None,
         doc_types: Optional[List[str]] = None,
+        login_hint: Optional[str] = None,
     ) -> str:
         params = {
             "response_type": "code",

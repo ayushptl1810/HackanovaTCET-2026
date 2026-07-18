@@ -44,6 +44,7 @@ async def digilocker_health():
 async def digilocker_login(
     redirect: bool = Query(False, description="If true, 302-redirect to DigiLocker instead of returning the URL"),
     purpose: Optional[str] = Query(None, description="kyc | verification | compliance | availing_services | educational"),
+    mock_user: Optional[str] = Query(None, description="Mock only: dataset citizen id to log in as (e.g. ayush, sunita, ramesh)"),
 ):
     """Begin the DigiLocker consent flow (OAuth2 authorization-code + PKCE)."""
     provider = get_digilocker_provider()
@@ -52,7 +53,9 @@ async def digilocker_login(
     save_verifier(state, code_verifier)
 
     try:
-        url = provider.build_authorization_url(state=state, code_verifier=code_verifier, purpose=purpose)
+        url = provider.build_authorization_url(
+            state=state, code_verifier=code_verifier, purpose=purpose, login_hint=mock_user
+        )
     except DigiLockerError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
 
@@ -103,6 +106,9 @@ async def digilocker_callback(
             "name": bundle.name,
             "dob": bundle.dob,
             "gender": bundle.gender,
+            "masked_aadhaar": bundle.claims.get("masked_aadhaar"),
+            "pan_number": bundle.claims.get("pan_number"),
+            "address": bundle.claims.get("address"),
         },
         "consent": consent_record,
         "access_token": bundle.access_token,   # caller stores server-side in real flow

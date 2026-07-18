@@ -31,6 +31,10 @@ def get_digilocker_provider() -> DigiLockerProvider:
         from .meripehchaan_provider import MeriPehchaanDigiLockerProvider
         return MeriPehchaanDigiLockerProvider()
 
+    if choice == "sandbox":
+        from services.sandbox import SandboxDigiLockerProvider
+        return SandboxDigiLockerProvider()
+
     if choice == "mock":
         from .mock_provider import MockDigiLockerProvider
         return MockDigiLockerProvider()

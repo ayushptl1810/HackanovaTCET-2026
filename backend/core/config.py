@@ -44,7 +44,17 @@ class Settings(BaseSettings):
     # --- DigiLocker / KYC integration ---
     # Provider selection lets the app run fully testable with a mock, and switch
     # to the real official DigiLocker (Meri Pehchaan) OAuth2/OIDC flow via config.
-    digilocker_provider: str = "mock"  # mock | meripehchaan
+    digilocker_provider: str = "mock"  # mock | meripehchaan | sandbox
+
+    # --- Sandbox (api.sandbox.co.in) KYC DigiLocker aggregator ---
+    # Test env returns canned data; live env returns real data (needs product activation).
+    sandbox_auth_url: str = "https://api.sandbox.co.in/authenticate"
+    sandbox_base_url: str = "https://test-api.sandbox.co.in"  # live: https://api.sandbox.co.in
+    sandbox_api_version: str = "1.0"
+    sandbox_test_api_key: str = ""
+    sandbox_test_api_secret: str = ""
+    sandbox_api_key: str = ""
+    sandbox_api_secret: str = ""
 
     # Official DigiLocker "Meri Pehchaan" Requester API (partner-issued creds).
     # Obtain client_id/client_secret by registering on the DigiLocker Partner Portal;
