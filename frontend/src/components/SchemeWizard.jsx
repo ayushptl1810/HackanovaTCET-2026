@@ -5,8 +5,10 @@ import { api } from "../api";
 import { ArrowRight, ArrowLeft, CheckCircle2, User, MapPin, Briefcase, IndianRupee } from "lucide-react";
 import GovHeader from "./GovHeader";
 import GovFooter from "./GovFooter";
+import { useLang } from "../lib/i18n";
 
 export default function SchemeWizard() {
+  const { t } = useLang();
   const [step, setStep] = useState(1);
   const [busy, setBusy] = useState(false);
   const nav = useNavigate();
@@ -33,7 +35,7 @@ export default function SchemeWizard() {
       nav("/results", { state: { results: res.schemes, profile: payload } });
     } catch (e) {
       console.error(e);
-      toast.error(e.message || "Couldn't fetch schemes just now. Please try again.");
+      toast.error(e.message || t("wiz.error"));
       setBusy(false);   // stay on the form so the user can retry
     }
   };
@@ -65,14 +67,14 @@ export default function SchemeWizard() {
               <div className="fade-up">
                 <div className="flex items-center gap-3 text-blue-600 mb-6">
                   <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center"><User size={20} /></div>
-                  <h2 className="font-heading text-2xl font-bold text-[var(--ink)]">Tell us about yourself</h2>
+                  <h2 className="font-heading text-2xl font-bold text-[var(--ink)]">{t("wiz.aboutYou")}</h2>
                 </div>
-                
+
                 <div className="space-y-6">
                   <div>
-                    <label className="block text-sm font-bold text-[var(--ink)] mb-2">Select your Gender</label>
+                    <label className="block text-sm font-bold text-[var(--ink)] mb-2">{t("wiz.selectGender")}</label>
                     <div className="grid grid-cols-2 gap-3">
-                      {[{id: "1", label: "Male"}, {id: "2", label: "Female"}, {id: "3", label: "Other"}].map(g => (
+                      {[{id: "1", label: t("opt.gender.male")}, {id: "2", label: t("opt.gender.female")}, {id: "3", label: t("opt.gender.other")}].map(g => (
                         <button key={g.id} onClick={() => update("gender", g.id)}
                           className={`py-3 px-4 rounded-xl border text-sm font-bold transition-all ${profile.gender === g.id ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-[var(--line)] bg-white text-[var(--muted)] hover:border-blue-300'}`}>
                           {g.label}
@@ -82,9 +84,9 @@ export default function SchemeWizard() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-bold text-[var(--ink)] mb-2">Select your Age</label>
+                    <label className="block text-sm font-bold text-[var(--ink)] mb-2">{t("wiz.selectAge")}</label>
                     <div className="grid grid-cols-2 gap-3">
-                      {[{id: "1", label: "Below 18"}, {id: "2", label: "18 to 35"}, {id: "3", label: "36 to 59"}, {id: "4", label: "60 or above"}].map(a => (
+                      {[{id: "1", label: t("opt.age.below18")}, {id: "2", label: t("opt.age.18_35")}, {id: "3", label: t("opt.age.36_59")}, {id: "4", label: t("opt.age.60plus")}].map(a => (
                         <button key={a.id} onClick={() => update("age_slab", a.id)}
                           className={`py-3 px-4 rounded-xl border text-sm font-bold transition-all ${profile.age_slab === a.id ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-[var(--line)] bg-white text-[var(--muted)] hover:border-blue-300'}`}>
                           {a.label}
@@ -100,17 +102,17 @@ export default function SchemeWizard() {
               <div className="fade-up">
                 <div className="flex items-center gap-3 text-blue-600 mb-6">
                   <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center"><MapPin size={20} /></div>
-                  <h2 className="font-heading text-2xl font-bold text-[var(--ink)]">Where do you live?</h2>
+                  <h2 className="font-heading text-2xl font-bold text-[var(--ink)]">{t("wiz.whereLive")}</h2>
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-bold text-[var(--ink)] mb-2">Select your State</label>
-                  <select 
-                    value={profile.state} 
+                  <label className="block text-sm font-bold text-[var(--ink)] mb-2">{t("wiz.selectState")}</label>
+                  <select
+                    value={profile.state}
                     onChange={e => update("state", e.target.value)}
                     className="w-full field py-3 bg-white"
                   >
-                    <option value="" disabled>Select State</option>
+                    <option value="" disabled>{t("login.selectState")}</option>
                     <option value="Maharashtra">Maharashtra</option>
                     <option value="Delhi">Delhi</option>
                     <option value="Karnataka">Karnataka</option>
@@ -125,15 +127,15 @@ export default function SchemeWizard() {
               <div className="fade-up">
                 <div className="flex items-center gap-3 text-blue-600 mb-6">
                   <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center"><Briefcase size={20} /></div>
-                  <h2 className="font-heading text-2xl font-bold text-[var(--ink)]">What is your occupation?</h2>
+                  <h2 className="font-heading text-2xl font-bold text-[var(--ink)]">{t("wiz.occupationQ")}</h2>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    {id: "1", label: "Student"}, 
-                    {id: "2", label: "Farmer"}, 
-                    {id: "3", label: "Govt. Employee"}, 
-                    {id: "4", label: "Other / Unemployed"}
+                    {id: "1", label: t("opt.occ.student")},
+                    {id: "2", label: t("opt.occ.farmer")},
+                    {id: "3", label: t("wiz.govtEmployee")},
+                    {id: "4", label: t("wiz.otherUnemployed")}
                   ].map(o => (
                     <button key={o.id} onClick={() => update("occupation", o.id)}
                       className={`py-3 px-4 rounded-xl border text-sm font-bold transition-all ${profile.occupation === o.id ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-[var(--line)] bg-white text-[var(--muted)] hover:border-blue-300'}`}>
@@ -148,14 +150,14 @@ export default function SchemeWizard() {
               <div className="fade-up">
                 <div className="flex items-center gap-3 text-blue-600 mb-6">
                   <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center"><IndianRupee size={20} /></div>
-                  <h2 className="font-heading text-2xl font-bold text-[var(--ink)]">What is your annual income?</h2>
+                  <h2 className="font-heading text-2xl font-bold text-[var(--ink)]">{t("wiz.incomeQ")}</h2>
                 </div>
-                
+
                 <div className="grid grid-cols-1 gap-3">
                   {[
-                    {id: "1", label: "Less than ₹2,00,000 (Low Income)"}, 
-                    {id: "2", label: "₹2,00,000 to ₹5,00,000 (Middle Income)"}, 
-                    {id: "3", label: "More than ₹5,00,000 (High Income)"}
+                    {id: "1", label: t("wiz.incLow")},
+                    {id: "2", label: t("wiz.incMid")},
+                    {id: "3", label: t("wiz.incHigh")}
                   ].map(i => (
                     <button key={i.id} onClick={() => update("income_slab", i.id)}
                       className={`py-4 px-4 rounded-xl border text-sm font-bold transition-all text-left ${profile.income_slab === i.id ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-[var(--line)] bg-white text-[var(--muted)] hover:border-blue-300'}`}>
@@ -174,24 +176,24 @@ export default function SchemeWizard() {
               disabled={step === 1}
               className={`flex items-center gap-2 font-bold text-sm ${step === 1 ? 'text-gray-300' : 'text-[var(--muted)] hover:text-[var(--ink)]'}`}
             >
-              <ArrowLeft size={16} /> Back
+              <ArrowLeft size={16} /> {t("common.back")}
             </button>
-            
+
             {step < 4 ? (
-              <button 
+              <button
                 onClick={next}
                 disabled={!isStepValid()}
                 className="btn btn-primary px-6 disabled:opacity-50"
               >
-                Next <ArrowRight size={16} className="ml-1" />
+                {t("common.next")} <ArrowRight size={16} className="ml-1" />
               </button>
             ) : (
-              <button 
+              <button
                 onClick={handleSubmit}
                 disabled={!isStepValid() || busy}
                 className="btn btn-primary px-6 disabled:opacity-50 bg-gradient-to-r from-orange-500 to-orange-600 border-none hover:opacity-90"
               >
-                {busy ? "Finding..." : "Find Schemes"} <CheckCircle2 size={16} className="ml-1" />
+                {busy ? t("wiz.finding") : t("wiz.findSchemes")} <CheckCircle2 size={16} className="ml-1" />
               </button>
             )}
           </div>

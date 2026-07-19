@@ -5,8 +5,10 @@ import { ChevronRight, ExternalLink, Share2, Facebook, Twitter, Linkedin, Mail }
 import { api } from "../api";
 import GovHeader from "./GovHeader";
 import GovFooter from "./GovFooter";
+import { useLang } from "../lib/i18n";
 
 export default function SchemeDetails() {
+  const { t } = useLang();
   const { id } = useParams();
   const [scheme, setScheme] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -27,7 +29,7 @@ export default function SchemeDetails() {
   }, [id]);
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return <div className="min-h-screen flex items-center justify-center">{t("common.loading")}</div>;
   }
 
   if (!scheme) {
@@ -35,8 +37,8 @@ export default function SchemeDetails() {
       <div className="min-h-screen flex flex-col">
         <GovHeader />
         <main className="flex-1 flex items-center justify-center flex-col">
-          <h2 className="text-2xl font-bold mb-4">Scheme Not Found</h2>
-          <Link to="/schemes" className="text-blue-600 hover:underline">Back to schemes</Link>
+          <h2 className="text-2xl font-bold mb-4">{t("det.notFound")}</h2>
+          <Link to="/schemes" className="text-blue-600 hover:underline">{t("det.backToSchemes")}</Link>
         </main>
         <GovFooter />
       </div>
@@ -52,13 +54,13 @@ export default function SchemeDetails() {
   };
 
   const navItems = [
-    { id: 'details', label: 'Details' },
-    { id: 'benefits', label: 'Benefits' },
-    { id: 'eligibility', label: 'Eligibility' },
-    { id: 'application-process', label: 'Application Process' },
-    { id: 'documents-required', label: 'Documents Required' },
-    { id: 'faqs', label: 'Frequently Asked Questions' },
-    { id: 'sources', label: 'Sources And References' }
+    { id: 'details', label: t("det.details") },
+    { id: 'benefits', label: t("det.benefits") },
+    { id: 'eligibility', label: t("det.eligibility") },
+    { id: 'application-process', label: t("det.appProcess") },
+    { id: 'documents-required', label: t("det.docsRequired") },
+    { id: 'faqs', label: t("det.faqs") },
+    { id: 'sources', label: t("det.sources") }
   ];
 
   const shareUrl = window.location.href;
@@ -66,8 +68,8 @@ export default function SchemeDetails() {
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(shareUrl)
-      .then(() => toast.success("Link copied to clipboard"))
-      .catch(() => toast.error("Could not copy the link"));
+      .then(() => toast.success(t("det.copied")))
+      .catch(() => toast.error(t("det.copyFailed")));
   };
 
   return (
@@ -77,7 +79,7 @@ export default function SchemeDetails() {
       {/* Breadcrumb */}
       <div className="border-b border-[var(--line)] bg-[var(--surface-2)]">
         <div className="wrap py-3 flex items-center gap-2 text-sm text-[var(--muted)]">
-          <Link to="/schemes" className="text-blue-600 font-bold hover:underline">&larr; Back</Link>
+          <Link to="/schemes" className="text-blue-600 font-bold hover:underline">&larr; {t("common.back")}</Link>
         </div>
       </div>
 
@@ -113,63 +115,63 @@ export default function SchemeDetails() {
             </div>
 
             <Link to="/login" className="btn btn-outline border-blue-600 text-blue-700 mb-10 hover:bg-blue-50">
-              Check Eligibility / Apply
+              {t("det.checkApply")}
             </Link>
 
             <div className="space-y-12 text-[15px] leading-relaxed text-[var(--body)]">
               
               <div id="details" className="scroll-mt-24">
-                <h2 className="text-xl font-heading font-bold text-[var(--navy)] mb-4 border-b pb-2">Details</h2>
-                <p>{scheme.benefits?.description || "Detailed description is not available."}</p>
+                <h2 className="text-xl font-heading font-bold text-[var(--navy)] mb-4 border-b pb-2">{t("det.details")}</h2>
+                <p>{scheme.benefits?.description || t("det.noDescription")}</p>
               </div>
 
               <div id="benefits" className="scroll-mt-24">
-                <h2 className="text-xl font-heading font-bold text-[var(--navy)] mb-4 border-b pb-2">Benefits</h2>
-                <p><strong>Benefit Type:</strong> <span className="capitalize">{scheme.benefits?.type || "Other"}</span></p>
+                <h2 className="text-xl font-heading font-bold text-[var(--navy)] mb-4 border-b pb-2">{t("det.benefits")}</h2>
+                <p><strong>{t("det.benefitType")}</strong> <span className="capitalize">{scheme.benefits?.type || "Other"}</span></p>
                 <p className="mt-2">{scheme.benefit_amount || scheme.benefits?.description}</p>
               </div>
 
               <div id="eligibility" className="scroll-mt-24">
-                <h2 className="text-xl font-heading font-bold text-[var(--navy)] mb-4 border-b pb-2">Eligibility</h2>
+                <h2 className="text-xl font-heading font-bold text-[var(--navy)] mb-4 border-b pb-2">{t("det.eligibility")}</h2>
                 <ul className="list-disc pl-5 space-y-2">
                   {scheme.eligibility_rules?.map((rule, idx) => {
                     const opText = rule.operator.replace(/_/g, ' ');
                     return (
                       <li key={idx}>
-                        <strong>{rule.profile_field.charAt(0).toUpperCase() + rule.profile_field.slice(1)}:</strong> must be {opText} {rule.value} {rule.is_mandatory && <span className="text-red-500 text-xs ml-1">(Mandatory)</span>}
+                        <strong>{rule.profile_field.charAt(0).toUpperCase() + rule.profile_field.slice(1)}:</strong> {t("det.mustBe")} {opText} {rule.value} {rule.is_mandatory && <span className="text-red-500 text-xs ml-1">{t("det.mandatory")}</span>}
                       </li>
                     )
                   })}
-                  {!scheme.eligibility_rules?.length && <li>Eligibility rules are not explicitly defined in the database.</li>}
+                  {!scheme.eligibility_rules?.length && <li>{t("det.noRules")}</li>}
                 </ul>
               </div>
 
               <div id="application-process" className="scroll-mt-24">
-                <h2 className="text-xl font-heading font-bold text-[var(--navy)] mb-4 border-b pb-2">Application Process</h2>
-                <p><strong>Mode:</strong> <span className="capitalize">{scheme.application_mode || "Online/Offline"}</span></p>
+                <h2 className="text-xl font-heading font-bold text-[var(--navy)] mb-4 border-b pb-2">{t("det.appProcess")}</h2>
+                <p><strong>{t("det.mode")}</strong> <span className="capitalize">{scheme.application_mode || "Online/Offline"}</span></p>
                 <div className="mt-4 space-y-2">
                   {scheme.application_process?.length > 0 ? (
                     scheme.application_process.map((step, i) => (
-                      <p key={i}><strong>Step {i+1}:</strong> {step}</p>
+                      <p key={i}><strong>{t("det.step")} {i+1}:</strong> {step}</p>
                     ))
                   ) : (
-                    <p>The application can be filled out directly via the Haqq Agent or the official portal.</p>
+                    <p>{t("det.appFallback")}</p>
                   )}
                 </div>
               </div>
 
               <div id="documents-required" className="scroll-mt-24">
-                <h2 className="text-xl font-heading font-bold text-[var(--navy)] mb-4 border-b pb-2">Documents Required</h2>
+                <h2 className="text-xl font-heading font-bold text-[var(--navy)] mb-4 border-b pb-2">{t("det.docsRequired")}</h2>
                 <ul className="list-disc pl-5 space-y-2">
                   {scheme.documents_required?.map((doc, idx) => (
                     <li key={idx} className="capitalize">{doc.replace(/_/g, ' ')}</li>
                   ))}
-                  {!scheme.documents_required?.length && <li>No specific documents listed.</li>}
+                  {!scheme.documents_required?.length && <li>{t("det.noDocs")}</li>}
                 </ul>
               </div>
 
               <div id="faqs" className="scroll-mt-24">
-                <h2 className="text-xl font-heading font-bold text-[var(--navy)] mb-4 border-b pb-2">Frequently Asked Questions</h2>
+                <h2 className="text-xl font-heading font-bold text-[var(--navy)] mb-4 border-b pb-2">{t("det.faqs")}</h2>
                 <div className="space-y-4">
                   {scheme.faqs?.length > 0 ? (
                     scheme.faqs.map((faq, i) => (
@@ -184,16 +186,16 @@ export default function SchemeDetails() {
                       </details>
                     ))
                   ) : (
-                    <p>No FAQs available for this scheme.</p>
+                    <p>{t("det.noFaqs")}</p>
                   )}
                 </div>
               </div>
 
               <div id="sources" className="scroll-mt-24">
-                <h2 className="text-xl font-heading font-bold text-[var(--navy)] mb-4 border-b pb-2">Sources And References</h2>
+                <h2 className="text-xl font-heading font-bold text-[var(--navy)] mb-4 border-b pb-2">{t("det.sources")}</h2>
                 {scheme.official_portal_url && (
                   <a href={scheme.official_portal_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-blue-600 hover:underline">
-                    Official Guidelines <ExternalLink size={16} />
+                    {t("det.officialGuidelines")} <ExternalLink size={16} />
                   </a>
                 )}
               </div>
@@ -205,16 +207,16 @@ export default function SchemeDetails() {
             <div className="sticky top-24 space-y-6">
               
               <div className="bg-green-600 text-white text-center font-bold py-3 rounded-lg shadow-sm">
-                This scheme is active
+                {t("det.active")}
               </div>
 
               <div className="bg-gray-50 border border-gray-100 rounded-lg p-5">
-                <h3 className="font-bold text-sm text-[var(--ink)] mb-3 border-b pb-2">News and Updates</h3>
-                <p className="text-xs text-[var(--muted)]">No new news and updates available</p>
+                <h3 className="font-bold text-sm text-[var(--ink)] mb-3 border-b pb-2">{t("det.news")}</h3>
+                <p className="text-xs text-[var(--muted)]">{t("det.noNews")}</p>
               </div>
 
               <div className="bg-gray-50 border border-gray-100 rounded-lg p-5">
-                <h3 className="font-bold text-sm text-[var(--ink)] mb-3 border-b pb-2">Share</h3>
+                <h3 className="font-bold text-sm text-[var(--ink)] mb-3 border-b pb-2">{t("det.share")}</h3>
                 <div className="flex items-center gap-2 text-gray-500">
                   <button type="button" aria-label="Share by email" title="Share by email"
                     onClick={() => window.open(`mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(shareUrl)}`)}

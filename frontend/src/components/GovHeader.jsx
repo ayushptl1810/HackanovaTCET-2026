@@ -5,10 +5,12 @@ import GovTopBar from "./GovTopBar";
 import HaqqLogo from "./HaqqLogo";
 import IndianFlag from "./gov/IndianFlag";
 import { auth } from "../api";
+import { useLang } from "../lib/i18n";
 
 export default function GovHeader() {
   const nav = useNavigate();
   const loc = useLocation();
+  const { t } = useLang();
   const loggedIn = auth.isLoggedIn();
   const [open, setOpen] = useState(false);
 
@@ -20,10 +22,10 @@ export default function GovHeader() {
   };
 
   const navItems = [
-    { label: "Home", to: "/" },
-    { label: "Browse Schemes", to: "/schemes" },
-    { label: "How it works", to: "/#how" },
-    { label: "About", to: "/#about" },
+    { label: t("nav.home"), to: "/" },
+    { label: t("chrome.browseSchemes"), to: "/schemes" },
+    { label: t("nav.how"), to: "/#how" },
+    { label: t("nav.about"), to: "/#about" },
   ];
   const isActive = (to) => (to === "/" ? loc.pathname === "/" : loc.pathname === to);
 
@@ -58,15 +60,15 @@ export default function GovHeader() {
             {loggedIn ? (
               <div className="hidden sm:flex items-center gap-3">
                 <Link to="/dashboard" className="btn btn-outline btn-sm">
-                  <LayoutDashboard size={16} /> Dashboard
+                  <LayoutDashboard size={16} /> {t("cta.dashboard")}
                 </Link>
                 <button onClick={logout} className="btn btn-ghost btn-sm text-[var(--muted)] hover:text-[var(--err)]">
-                  <LogOut size={16} /> Logout
+                  <LogOut size={16} /> {t("cta.logout")}
                 </button>
               </div>
             ) : (
               <Link to="/login" className="hidden sm:inline-flex btn btn-primary btn-sm px-5">
-                <LogIn size={16} /> Citizen Login
+                <LogIn size={16} /> {t("cta.login")}
               </Link>
             )}
             <button
@@ -98,15 +100,15 @@ export default function GovHeader() {
               {loggedIn ? (
                 <>
                   <Link to="/dashboard" onClick={() => setOpen(false)} className="btn btn-outline btn-sm w-full">
-                    <LayoutDashboard size={16} /> Dashboard
+                    <LayoutDashboard size={16} /> {t("cta.dashboard")}
                   </Link>
                   <button onClick={() => { setOpen(false); logout(); }} className="btn btn-ghost btn-sm w-full text-[var(--err)]">
-                    <LogOut size={16} /> Logout
+                    <LogOut size={16} /> {t("cta.logout")}
                   </button>
                 </>
               ) : (
                 <Link to="/login" onClick={() => setOpen(false)} className="btn btn-primary btn-sm w-full py-2.5">
-                  <LogIn size={16} /> Citizen Login
+                  <LogIn size={16} /> {t("cta.login")}
                 </Link>
               )}
             </div>

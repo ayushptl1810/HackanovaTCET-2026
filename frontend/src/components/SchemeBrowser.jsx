@@ -4,8 +4,10 @@ import { Search, ChevronDown, CheckCircle2 } from "lucide-react";
 import { api } from "../api";
 import GovHeader from "./GovHeader";
 import GovFooter from "./GovFooter";
+import { useLang } from "../lib/i18n";
 
 export default function SchemeBrowser() {
+  const { t } = useLang();
   const [schemes, setSchemes] = useState([]);
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("all");
@@ -57,7 +59,7 @@ export default function SchemeBrowser() {
       <main className="flex-1 wrap py-8">
         <div className="flex items-center gap-2 mb-6">
           <Link to="/" className="text-blue-600 hover:underline text-sm font-bold flex items-center gap-1">
-             &larr; Back
+             &larr; {t("common.back")}
           </Link>
         </div>
 
@@ -66,36 +68,36 @@ export default function SchemeBrowser() {
           {/* Sidebar */}
           <aside className="bg-white border border-[var(--line)] rounded-xl p-6 h-max sticky top-24 shadow-sm hidden lg:block">
             <div className="flex items-center justify-between border-b border-[var(--line)] pb-4 mb-4">
-              <h3 className="font-heading font-bold text-[var(--ink)]">Filter By</h3>
-              <button 
+              <h3 className="font-heading font-bold text-[var(--ink)]">{t("browse.filterBy")}</h3>
+              <button
                 onClick={() => setFilters({state:"", category:"", gender:"", age:"", caste:"", residence:""})}
                 className="text-xs font-bold text-green-700 hover:underline"
               >
-                Reset Filters
+                {t("browse.reset")}
               </button>
             </div>
 
             <div className="space-y-6">
               <div>
-                <label className="text-sm font-bold text-[var(--ink)] block mb-2">State/UT</label>
-                <select 
+                <label className="text-sm font-bold text-[var(--ink)] block mb-2">{t("browse.stateUt")}</label>
+                <select
                   className="w-full field py-2 text-sm"
                   value={filters.state}
                   onChange={e => setFilters({...filters, state: e.target.value})}
                 >
-                  <option value="">Select</option>
+                  <option value="">{t("browse.select")}</option>
                   {states.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="text-sm font-bold text-[var(--ink)] block mb-2">Scheme Category</label>
-                <select 
+                <label className="text-sm font-bold text-[var(--ink)] block mb-2">{t("browse.category")}</label>
+                <select
                   className="w-full field py-2 text-sm"
                   value={filters.category}
                   onChange={e => setFilters({...filters, category: e.target.value})}
                 >
-                  <option value="">Select</option>
+                  <option value="">{t("browse.select")}</option>
                   {categories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
@@ -109,7 +111,7 @@ export default function SchemeBrowser() {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input 
                 type="text" 
-                placeholder="Enter scheme name to search..."
+                placeholder={t("browse.searchPlaceholder")}
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="w-full field py-3 pl-10 pr-4 text-[15px] border-gray-300 rounded-full shadow-sm"
@@ -120,19 +122,19 @@ export default function SchemeBrowser() {
               <button 
                 className={`font-bold pb-2 text-sm ${activeTab === 'all' ? 'border-b-2 border-green-700 text-green-800' : 'text-[var(--muted)] hover:text-[var(--ink)]'}`}
                 onClick={() => setActiveTab('all')}
-              >All Schemes</button>
+              >{t("browse.tabAll")}</button>
               <button 
                 className={`font-bold pb-2 text-sm ${activeTab === 'state' ? 'border-b-2 border-green-700 text-green-800' : 'text-[var(--muted)] hover:text-[var(--ink)]'}`}
                 onClick={() => setActiveTab('state')}
-              >State/UT Schemes</button>
+              >{t("browse.tabState")}</button>
               <button 
                 className={`font-bold pb-2 text-sm ${activeTab === 'central' ? 'border-b-2 border-green-700 text-green-800' : 'text-[var(--muted)] hover:text-[var(--ink)]'}`}
                 onClick={() => setActiveTab('central')}
-              >Central Schemes</button>
+              >{t("browse.tabCentral")}</button>
             </div>
 
             <p className="text-sm font-bold text-[var(--muted)] mb-6">
-              Total <span className="text-[var(--ink)]">{displayedSchemes.length}</span> schemes available
+              {t("browse.total1")} <span className="text-[var(--ink)]">{displayedSchemes.length}</span> {t("browse.total2")}
             </p>
 
             <div className="space-y-4">
@@ -142,7 +144,7 @@ export default function SchemeBrowser() {
                   <p className="text-sm text-[var(--muted)] mt-1">{s.ministry || "Government of India"}</p>
                   
                   <p className="mt-4 text-sm text-[var(--ink)] line-clamp-2">
-                    {s.benefits?.description || "A scheme provided by the government to offer financial and social assistance to eligible citizens."}
+                    {s.benefits?.description || t("browse.defaultDesc")}
                   </p>
 
                   <div className="mt-5 flex flex-wrap gap-2">
@@ -163,7 +165,7 @@ export default function SchemeBrowser() {
             
             {displayedSchemes.length === 0 && (
               <div className="text-center py-20 text-[var(--muted)]">
-                No schemes found matching your filters.
+                {t("browse.noResults")}
               </div>
             )}
           </section>

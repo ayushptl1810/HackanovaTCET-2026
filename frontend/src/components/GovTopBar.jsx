@@ -5,7 +5,7 @@ import { useLang } from "../lib/i18n";
 export default function GovTopBar() {
   // Drive the real app-wide i18n (shared with the dashboard, assistant & voice),
   // toggling between English and Hindi — the two most common choices here.
-  const { lang, setLang } = useLang();
+  const { lang, setLang, t } = useLang();
   const isHindi = lang === "hi";
 
   const setScale = (s) =>
@@ -18,14 +18,14 @@ export default function GovTopBar() {
           <NationalEmblem size={16} motto={false} />
           <span className="truncate tracking-wide">
             <span className="font-medium text-[var(--ink)]">भारत सरकार</span>
-            <span className="opacity-50 mx-1">|</span>Government of India
+            <span className="opacity-50 mx-1">|</span>{t("chrome.govOfIndia")}
           </span>
           <span className="hidden md:inline opacity-40 mx-1">|</span>
-          <span className="hidden md:inline font-medium">Ministry of Social Justice &amp; Empowerment</span>
+          <span className="hidden md:inline font-medium">{t("chrome.ministry")}</span>
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          <div className="hidden sm:flex items-center gap-0.5" aria-label="Text size">
+          <div className="hidden sm:flex items-center gap-0.5" aria-label={t("chrome.textSize")}>
             <button onClick={() => setScale(0.9)}  className="w-5 h-5 flex items-center justify-center rounded hover:bg-[var(--line)] hover:text-[var(--ink)] transition-colors" aria-label="Decrease text size">A-</button>
             <button onClick={() => setScale(1)}    className="w-5 h-5 flex items-center justify-center rounded hover:bg-[var(--line)] hover:text-[var(--ink)] transition-colors" aria-label="Reset text size">A</button>
             <button onClick={() => setScale(1.15)} className="w-5 h-5 flex items-center justify-center rounded hover:bg-[var(--line)] hover:text-[var(--ink)] transition-colors" aria-label="Increase text size">A+</button>

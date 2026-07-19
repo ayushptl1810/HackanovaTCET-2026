@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import { applicationFields, automationStats, docChecklist } from "../lib/rights";
+import { useLang } from "../lib/i18n";
 
 function downloadApplicationPdf(scheme, fields, checklist) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
@@ -59,6 +60,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const slug = (s) => (s || "scheme").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
 
 export default function AutofillAgent({ scheme, applicant, docs = [], onClose, onSubmitted }) {
+  const { t } = useLang();
   const fields = useRef(applicationFields(scheme, applicant)).current;
   const stats = useRef(automationStats(fields)).current;
   const checklist = useRef(docChecklist(scheme, docs)).current;
@@ -123,8 +125,8 @@ export default function AutofillAgent({ scheme, applicant, docs = [], onClose, o
             </div>
             <div className="min-w-0">
               <div className="font-bold text-[var(--ink)] flex items-center gap-2">
-                Haqq Apply-Agent
-                <span className="badge badge-info"><Sparkles size={12} /> auto-fill</span>
+                {t("agent.title")}
+                <span className="badge badge-info"><Sparkles size={12} /> {t("agent.autofill")}</span>
               </div>
               <div className="text-xs text-[var(--muted)] truncate">{scheme?.name}</div>
             </div>
@@ -138,10 +140,10 @@ export default function AutofillAgent({ scheme, applicant, docs = [], onClose, o
             <Lock size={13} className="text-[var(--green)] shrink-0" />
             <Globe size={14} className="text-[var(--muted)] shrink-0" />
             <span className="text-[var(--body)] truncate font-mono text-xs">
-              {phase === "locate" ? "locating official application page…" : portalUrl}
+              {phase === "locate" ? t("agent.locating") : portalUrl}
             </span>
             {phase === "locate" && <Loader2 size={13} className="animate-spin text-[var(--muted)] ml-auto" />}
-            {phase !== "locate" && <span className="badge badge-ok ml-auto shrink-0">connected</span>}
+            {phase !== "locate" && <span className="badge badge-ok ml-auto shrink-0">{t("agent.connected")}</span>}
           </div>
         </div>
 
@@ -151,11 +153,10 @@ export default function AutofillAgent({ scheme, applicant, docs = [], onClose, o
             <div className="py-10 text-center">
               <div className="inline-flex items-center gap-2 text-[var(--navy)] font-semibold">
                 <MousePointerClick size={18} className="animate-pulse" />
-                Finding the official portal & opening the application form…
+                {t("agent.locatingBig")}
               </div>
               <p className="text-sm text-[var(--muted)] mt-2 max-w-md mx-auto">
-                The agent matches this scheme to its government application page and prepares to fill it
-                using your DigiLocker documents and profile.
+                {t("agent.locatingHint")}
               </p>
             </div>
           ) : (
@@ -165,7 +166,7 @@ export default function AutofillAgent({ scheme, applicant, docs = [], onClose, o
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-bold text-[var(--ink)] flex items-center gap-2">
                     <Sparkles size={15} className="text-[var(--saffron)]" />
-                    {phase === "fill" ? "Auto-filling your application…" : "Application auto-filled"}
+                    {phase === "fill" ? t("agent.autofilling") : t("agent.autofilled")}
                   </span>
                   <span className="font-extrabold text-[var(--green)] text-lg tabular-nums">{stats.pct}%</span>
                 </div>
@@ -174,18 +175,18 @@ export default function AutofillAgent({ scheme, applicant, docs = [], onClose, o
                     style={{ width: `${Math.round((filledCount / Math.max(1, stats.auto)) * stats.pct)}%` }} />
                 </div>
                 <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2.5 text-xs text-[var(--muted)]">
-                  <span className="flex items-center gap-1"><CheckCircle2 size={12} className="text-[var(--green)]" /> {filledCount}/{stats.auto} fields auto-filled</span>
-                  <span className="flex items-center gap-1"><Clock size={12} /> ~{minutesSaved} min of typing saved</span>
-                  <span className="flex items-center gap-1"><FileCheck2 size={12} /> {docs.length} documents attached</span>
+                  <span className="flex items-center gap-1"><CheckCircle2 size={12} className="text-[var(--green)]" /> {filledCount}/{stats.auto} {t("agent.fieldsAutofilled")}</span>
+                  <span className="flex items-center gap-1"><Clock size={12} /> ~{minutesSaved} {t("agent.minSaved")}</span>
+                  <span className="flex items-center gap-1"><FileCheck2 size={12} /> {docs.length} {t("agent.docsAttached")}</span>
                 </div>
               </div>
 
               {/* document checklist */}
               <div className="rounded-[var(--radius)] border border-[var(--line)] p-4 mb-4">
                 <div className="text-sm font-bold text-[var(--ink)] flex items-center gap-2 mb-2.5">
-                  <FileCheck2 size={15} className="text-[var(--navy)]" /> Documents for this scheme
+                  <FileCheck2 size={15} className="text-[var(--navy)]" /> {t("agent.docsForScheme")}
                   <span className="badge badge-neutral ml-auto">
-                    {checklist.filter((c) => c.have).length}/{checklist.length} ready
+                    {checklist.filter((c) => c.have).length}/{checklist.length} {t("agent.ready")}
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -198,7 +199,7 @@ export default function AutofillAgent({ scheme, applicant, docs = [], onClose, o
                 </div>
                 {checklist.some((c) => !c.have) && (
                   <p className="text-xs text-[var(--muted)] mt-2.5">
-                    Missing documents can be pulled from DigiLocker, or collected at a nearby help centre.
+                    {t("agent.missingDocs")}
                   </p>
                 )}
               </div>
@@ -219,7 +220,7 @@ export default function AutofillAgent({ scheme, applicant, docs = [], onClose, o
                       <div className="flex items-center justify-between">
                         <span className="text-[0.7rem] font-semibold text-[var(--muted)]">{f.label}{f.required && <span className="text-[var(--err)]">*</span>}</span>
                         {isManual ? (
-                          <span className="badge badge-warn !py-0 !text-[0.6rem]">needs you</span>
+                          <span className="badge badge-warn !py-0 !text-[0.6rem]">{t("agent.needsYou")}</span>
                         ) : filled ? (
                           <CheckCircle2 size={13} className="text-[var(--green)]" />
                         ) : isActive ? (
@@ -228,7 +229,7 @@ export default function AutofillAgent({ scheme, applicant, docs = [], onClose, o
                       </div>
                       <div className={`mt-1 text-sm min-h-[1.25rem] font-medium ${isManual ? "text-[var(--warn)]" : "text-[var(--ink)]"}`}>
                         {isManual
-                          ? (phase === "review" ? "Enter manually" : "—")
+                          ? (phase === "review" ? t("agent.enterManually") : "—")
                           : <>{value}{isActive && !filled && <span className="inline-block w-[2px] h-[1em] bg-[var(--blue)] align-middle ml-[1px] animate-pulse" />}</>}
                       </div>
                       {f.auto && (value || filled) && (
@@ -249,9 +250,9 @@ export default function AutofillAgent({ scheme, applicant, docs = [], onClose, o
           {phase === "review" ? (
             <div className="flex flex-col sm:flex-row items-center gap-3">
               <p className="text-xs text-[var(--muted)] grow text-center sm:text-left">
-                <span className="font-bold text-[var(--green)]">{stats.pct}% done for you.</span>{" "}
-                Review the <span className="font-semibold text-[var(--warn)]">{stats.manual} highlighted field(s)</span>, then submit.
-                <br />Demo: not connected to a live government portal.
+                <span className="font-bold text-[var(--green)]">{stats.pct}% {t("agent.doneForYou")}</span>{" "}
+                {t("agent.reviewHighlighted")} <span className="font-semibold text-[var(--warn)]">{stats.manual}</span> {t("agent.highlightedFields")}
+                <br />{t("agent.demoNote")}
               </p>
               <div className="flex flex-wrap gap-2 shrink-0">
                 <button onClick={() => downloadApplicationPdf(scheme, fields, checklist)}
@@ -261,19 +262,19 @@ export default function AutofillAgent({ scheme, applicant, docs = [], onClose, o
                 {scheme?.official_portal_url && (
                   <a href={scheme.official_portal_url} target="_blank" rel="noopener noreferrer"
                     className="btn btn-outline">
-                    <ExternalLink size={15} /> Official portal
+                    <ExternalLink size={15} /> {t("agent.officialPortal")}
                   </a>
                 )}
                 <button className="btn btn-primary"
                   onClick={() => { onSubmitted?.(scheme); }}>
-                  <FileCheck2 size={16} /> Review & submit
+                  <FileCheck2 size={16} /> {t("agent.reviewSubmit")}
                 </button>
               </div>
             </div>
           ) : (
             <div className="flex items-center gap-2 text-xs text-[var(--muted)] justify-center">
               <Bot size={14} className="text-[var(--navy)]" />
-              The agent is working — sit back. <ArrowRight size={13} />
+              {t("agent.working")} <ArrowRight size={13} />
             </div>
           )}
         </div>

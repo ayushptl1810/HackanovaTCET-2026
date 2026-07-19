@@ -7,8 +7,10 @@ import {
 import GovHeader from "./GovHeader";
 import GovFooter from "./GovFooter";
 import { auth, api } from "../api";
+import { useLang } from "../lib/i18n";
 
 export default function Home() {
+  const { t } = useLang();
   const loggedIn = auth.isLoggedIn();
   const location = useLocation();
   const [schemes, setSchemes] = useState([]);
@@ -56,31 +58,31 @@ export default function Home() {
         <div className="wrap grid lg:grid-cols-2 gap-12 items-center relative z-10">
           <div className="fade-up">
             <span className="badge badge-info mb-6 bg-blue-50/80 border-blue-100 backdrop-blur-sm px-4 py-1.5 shadow-sm">
-              <ShieldCheck size={16} /> Autonomous AI Agent · Secure
+              <ShieldCheck size={16} /> {t("home.badge")}
             </span>
             <h1 className="font-heading text-[2.5rem] md:text-6xl font-extrabold leading-[1.1] text-[var(--ink)]">
-              Know your <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-orange-600">Haqq</span>.<br />
-              Let the AI do the work.
+              {t("home.heroKnow")} <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-orange-600">Haqq</span>.<br />
+              {t("home.heroRest")}
             </h1>
             <p className="mt-6 text-lg md:text-xl text-[var(--muted)] max-w-xl leading-relaxed">
-              Haqq is your personal AI agent designed to spread knowledge about welfare schemes. It finds what you qualify for, fetches your documents, and fills out your applications — ready for you to review and submit.
+              {t("home.heroSub")}
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
               <Link to={loggedIn ? "/dashboard" : "/find"} className="btn btn-primary btn-lg group shadow-blue-900/10 hover:shadow-blue-900/20">
-                {loggedIn ? "Go to my dashboard" : "Find schemes for you"} 
+                {loggedIn ? t("home.ctaDashboard") : t("home.ctaFind")}
                 <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
               </Link>
-              <a href="#schemes" className="btn btn-outline btn-lg bg-white/50 backdrop-blur-sm">Browse catalog</a>
+              <a href="#schemes" className="btn btn-outline btn-lg bg-white/50 backdrop-blur-sm">{t("home.ctaBrowse")}</a>
             </div>
           </div>
 
           <div className="fade-up lg:justify-self-end w-full max-w-md" style={{ animationDelay: '150ms' }}>
             <div className="glass-card rounded-[24px] p-6 md:p-8 border border-blue-100/50 bg-gradient-to-br from-blue-50/30 to-white">
               <div className="flex items-center gap-3 text-sm font-bold text-blue-600 mb-6 bg-blue-50 p-3 rounded-xl border border-blue-100/50">
-                <Bot size={24} /> Haqq Sahayak AI Agent
+                <Bot size={24} /> {t("home.agentName")}
               </div>
               <p className="text-[15px] font-medium text-[var(--body)] leading-relaxed">
-                "Namaste! I am the Haqq AI agent. You don't have to navigate confusing government portals anymore. Just tell me what you need, and I will fetch your DigiLocker documents and fill out the forms for you — you simply review and submit."
+                {t("home.agentQuote")}
               </p>
             </div>
           </div>
@@ -91,12 +93,12 @@ export default function Home() {
       <section className="bg-[var(--surface-2)] border-y border-[var(--line)] py-16 md:py-24" id="schemes">
         <div className="wrap">
           <div className="text-center max-w-2xl mx-auto fade-up">
-            <span className="eyebrow bg-white border border-[var(--line)] px-3 py-1 rounded-full shadow-sm">Welfare Catalog</span>
+            <span className="eyebrow bg-white border border-[var(--line)] px-3 py-1 rounded-full shadow-sm">{t("home.catalogEyebrow")}</span>
             <h2 className="font-heading text-3xl md:text-4xl font-bold mt-4">
-              Explore Available Schemes
+              {t("home.catalogTitle")}
             </h2>
             <p className="text-[var(--muted)] text-lg mt-4 leading-relaxed">
-              Browse the vast array of welfare schemes provided by Central and State governments. Log in to let our AI agent check your eligibility and apply for you.
+              {t("home.catalogSub")}
             </p>
           </div>
 
@@ -122,12 +124,12 @@ export default function Home() {
                   </span>
                   <h3 className="font-heading text-lg font-bold text-[var(--ink)] leading-snug">{s.name}</h3>
                   <p className="mt-3 text-[14px] font-medium text-[var(--muted)] line-clamp-2">
-                    {s.benefit_amount || "Financial and social support benefits provided by the government."}
+                    {s.benefit_amount || t("home.defaultBenefit")}
                   </p>
                 </div>
                 <div className="mt-6 pt-4 border-t border-[var(--line)]">
                   <Link to="/login" className="text-[13px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 group">
-                    Sign in to apply <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                    {t("common.signInApply")} <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
                   </Link>
                 </div>
               </div>
@@ -135,7 +137,7 @@ export default function Home() {
           </div>
           {schemes.length > 9 && (
             <div className="text-center mt-10">
-              <Link to="/login" className="btn btn-outline bg-white">View all {schemes.length} schemes</Link>
+              <Link to="/login" className="btn btn-outline bg-white">{t("home.viewAll")} {schemes.length} {t("common.schemes")}</Link>
             </div>
           )}
         </div>
@@ -144,12 +146,12 @@ export default function Home() {
       {/* --------------------------------------------------- How it works */}
       <section className="wrap py-16 md:py-24" id="how">
         <div className="text-center max-w-2xl mx-auto fade-up">
-          <span className="eyebrow bg-blue-50 px-3 py-1 rounded-full text-blue-600">The Process</span>
+          <span className="eyebrow bg-blue-50 px-3 py-1 rounded-full text-blue-600">{t("home.processEyebrow")}</span>
           <h2 className="font-heading text-3xl md:text-4xl font-bold mt-4">
-            An agent that works automatically for you
+            {t("home.processTitle")}
           </h2>
           <p className="text-[var(--muted)] text-lg mt-4 leading-relaxed">
-            Haqq completely automates the painful process of claiming your entitlements. Our AI agent does the heavy lifting so you don't have to.
+            {t("home.processSub")}
           </p>
         </div>
         
@@ -160,9 +162,9 @@ export default function Home() {
             <div className="mx-auto w-20 h-20 rounded-2xl bg-white border border-blue-200 text-blue-600 flex items-center justify-center shadow-sm relative z-10">
               <Search size={32} />
             </div>
-            <h3 className="font-heading mt-6 text-xl font-bold">1. Agent discovers your rights</h3>
+            <h3 className="font-heading mt-6 text-xl font-bold">{t("home.step1Title")}</h3>
             <p className="mt-3 text-[15px] text-[var(--muted)] max-w-xs mx-auto leading-relaxed">
-              The AI agent scans thousands of schemes across state and central governments, instantly verifying your eligibility based on your simple profile.
+              {t("home.step1Body")}
             </p>
           </div>
 
@@ -170,9 +172,9 @@ export default function Home() {
             <div className="mx-auto w-20 h-20 rounded-2xl bg-white border border-blue-200 text-blue-600 flex items-center justify-center shadow-sm relative z-10">
               <Layers size={32} />
             </div>
-            <h3 className="font-heading mt-6 text-xl font-bold">2. Agent fetches documents</h3>
+            <h3 className="font-heading mt-6 text-xl font-bold">{t("home.step2Title")}</h3>
             <p className="mt-3 text-[15px] text-[var(--muted)] max-w-xs mx-auto leading-relaxed">
-              With your one-time consent, the agent securely fetches your Aadhaar, income certificates, and caste certificates directly from DigiLocker.
+              {t("home.step2Body")}
             </p>
           </div>
 
@@ -180,9 +182,9 @@ export default function Home() {
             <div className="mx-auto w-20 h-20 rounded-2xl bg-white border border-blue-200 text-blue-600 flex items-center justify-center shadow-sm relative z-10">
               <Bot size={32} />
             </div>
-            <h3 className="font-heading mt-6 text-xl font-bold">3. Agent auto-fills the forms</h3>
+            <h3 className="font-heading mt-6 text-xl font-bold">{t("home.step3Title")}</h3>
             <p className="mt-3 text-[15px] text-[var(--muted)] max-w-xs mx-auto leading-relaxed">
-              The AI agent maps your document data to complex government forms, filling them out automatically on your behalf. You just review and hit submit.
+              {t("home.step3Body")}
             </p>
           </div>
         </div>
@@ -196,18 +198,12 @@ export default function Home() {
               <ShieldCheck size={32} />
             </div>
             <h2 className="font-heading text-3xl md:text-4xl font-bold leading-tight text-[var(--ink)]">
-              About the Haqq Initiative
+              {t("home.aboutTitle")}
             </h2>
             <div className="mt-6 text-[16px] md:text-lg text-[var(--muted)] leading-relaxed space-y-4 max-w-2xl mx-auto">
-              <p>
-                This is a project dedicated to spreading knowledge about different government schemes and ensuring welfare reaches every citizen. 
-              </p>
-              <p>
-                Haqq is a website powered by a state-of-the-art AI agent that does the heavy lifting for you. Instead of you having to search for schemes, figure out if you're eligible, gather documents, and fill out endless forms, the agent prepares everything — and you stay in control of the final review and submission.
-              </p>
-              <p>
-                By breaking down language barriers and technological hurdles, we ensure that no citizen is left behind.
-              </p>
+              <p>{t("home.aboutP1")}</p>
+              <p>{t("home.aboutP2")}</p>
+              <p>{t("home.aboutP3")}</p>
             </div>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import * as faceapi from "@vladmandic/face-api";
 import { ScanFace, ShieldCheck, X, Loader2, CameraOff, CheckCircle2 } from "lucide-react";
+import { useLang } from "../lib/i18n";
 
 /*
  * FaceGate — a lightweight liveness / presence check.
@@ -35,6 +36,7 @@ const STABLE_HITS_REQUIRED = 6;   // ~1.2s of continuous detection @ 200ms
 const SCORE_THRESHOLD = 0.45;     // TinyFaceDetector confidence for a real face
 
 export default function FaceGate({ open, purpose = "verify your identity", onVerified, onCancel }) {
+  const { t } = useLang();
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -142,11 +144,11 @@ export default function FaceGate({ open, purpose = "verify your identity", onVer
   if (!open) return null;
 
   const statusText = {
-    loading: "Loading secure on-device face model…",
-    scanning: "Position your face inside the frame",
-    detected: "Face detected — hold still…",
-    verified: "Identity presence confirmed",
-    error: "Face check unavailable",
+    loading: t("face.loading"),
+    scanning: t("face.scanning"),
+    detected: t("face.detected"),
+    verified: t("face.verifiedStatus"),
+    error: t("face.errorStatus"),
   }[status];
 
   return (
@@ -155,12 +157,12 @@ export default function FaceGate({ open, purpose = "verify your identity", onVer
       <div className="card shadow-[var(--shadow-lg)] w-full max-w-md p-6 fade-up" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <span className="badge badge-info mb-2"><ShieldCheck size={13} /> Liveness check</span>
+            <span className="badge badge-info mb-2"><ShieldCheck size={13} /> {t("face.badge")}</span>
             <h3 className="text-lg font-bold text-[var(--ink)] flex items-center gap-2">
-              <ScanFace size={20} className="text-[var(--navy)]" /> Face verification
+              <ScanFace size={20} className="text-[var(--navy)]" /> {t("face.title")}
             </h3>
             <p className="text-sm text-[var(--muted)] mt-1">
-              A quick on-device face scan to {purpose}. Your camera image never leaves this device.
+              {t("face.subPrefix")} {purpose}. {t("face.subSuffix")}
             </p>
           </div>
           <button onClick={onCancel} aria-label="Close" className="btn btn-ghost btn-sm !px-2"><X size={20} /></button>
@@ -182,7 +184,7 @@ export default function FaceGate({ open, purpose = "verify your identity", onVer
               {status === "verified" && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-[var(--green)]/85 text-white gap-2 fade-up">
                   <CheckCircle2 size={44} />
-                  <span className="font-bold">Verified</span>
+                  <span className="font-bold">{t("face.verified")}</span>
                 </div>
               )}
             </>
@@ -209,15 +211,15 @@ export default function FaceGate({ open, purpose = "verify your identity", onVer
         )}
 
         <div className="mt-5 flex gap-2">
-          <button onClick={onCancel} className="btn btn-outline flex-1">Cancel</button>
+          <button onClick={onCancel} className="btn btn-outline flex-1">{t("face.cancel")}</button>
           {status === "error" && (
             // Graceful degrade: if the camera/model is unavailable, don't hard-block
             // the demo — let the citizen continue after an explicit choice.
-            <button onClick={onVerified} className="btn btn-primary flex-1">Continue without scan</button>
+            <button onClick={onVerified} className="btn btn-primary flex-1">{t("face.continueNoScan")}</button>
           )}
         </div>
         <p className="text-[0.7rem] text-[var(--muted)] mt-3 text-center leading-relaxed">
-          Powered by an open-source on-device model (TinyFaceDetector). No image is uploaded or stored.
+          {t("face.poweredBy")}
         </p>
       </div>
     </div>
