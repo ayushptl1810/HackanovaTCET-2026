@@ -5,12 +5,14 @@ import Home from "./components/Home";
 import Login from "./components/Login";
 import Dashboard from "./components/Dashboard";
 import Assistant from "./components/Assistant";
+import { LanguageProvider } from "./lib/i18n";
 import { auth } from "./api";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(auth.isLoggedIn());
 
   return (
+    <LanguageProvider>
     <Router>
       <Toaster position="top-right" reverseOrder={false} />
       <Routes>
@@ -31,6 +33,7 @@ function App() {
       {/* Global help chatbot + voice agent, available on every page */}
       <Assistant />
     </Router>
+    </LanguageProvider>
   );
 }
 

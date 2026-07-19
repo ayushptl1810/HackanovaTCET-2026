@@ -29,6 +29,8 @@ class SchemeResult:
     conflicts_with: list
     eligibility: str = "needs_info"   # eligible | not_eligible | needs_info
     reasons: list = None              # per-rule outcomes (field/operator/value/outcome)
+    documents_required: list = None   # doc slugs the scheme asks for
+    official_portal_url: str = ""     # real application page (myscheme.gov.in/...)
 
 
 # ---------------------------------------------------------------------------
@@ -178,6 +180,8 @@ def get_top_schemes(
             conflicts_with=list(conflict_map.get(sid, [])),
             eligibility=elig.verdict,
             reasons=[asdict(r) for r in elig.reasons],
+            documents_required=list(scheme.get("documents_required", []) or []),
+            official_portal_url=scheme.get("official_portal_url", "") or "",
         )
         results.append(result)
 

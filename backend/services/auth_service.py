@@ -39,6 +39,7 @@ def register_citizen(
     occupation_choice: str = "",
     preferred_lang: str = "hi",
     annual_income: int = 0,
+    state: str = "",
 ) -> Dict[str, Any]:
     """
     Create a new citizen_profiles row (verified_tier=0).
@@ -62,8 +63,8 @@ def register_citizen(
         conn.execute(
             """INSERT INTO citizen_profiles
                (phone_hmac, pin_hash, age_slab, gender, income_slab,
-                annual_income, occupation, preferred_lang, verified_tier)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)""",
+                annual_income, occupation, state, preferred_lang, verified_tier)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)""",
             (
                 hmac_key,
                 pin_hashed,
@@ -72,6 +73,7 @@ def register_citizen(
                 INCOME_SLABS.get(income_choice, income_choice),
                 int(annual_income or 0),
                 OCCUPATION_MAP.get(occupation_choice, occupation_choice),
+                (state or "").strip(),
                 preferred_lang,
             ),
         )

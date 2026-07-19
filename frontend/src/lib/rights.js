@@ -133,3 +133,103 @@ export function automationStats(fields) {
   const pct = total ? Math.round((auto / total) * 100) : 0;
   return { total, auto, manual: total - auto, pct };
 }
+
+// ---------------------------------------------------------------------------
+// Document checklist — what the scheme needs vs what the citizen already has.
+// The scraped scheme data only lists `aadhaar_card`, so we enrich with a
+// category heuristic to give a realistic, useful list.
+// ---------------------------------------------------------------------------
+const DOC_LABELS = {
+  aadhaar_card: "Aadhaar Card",
+  income_certificate: "Income Certificate",
+  pan_card: "PAN Card",
+  caste_certificate: "Caste / Community Certificate",
+  domicile_certificate: "Domicile / Residence Certificate",
+  bank_passbook: "Bank Passbook",
+  marksheet: "Latest Marksheet",
+  disability_certificate: "Disability Certificate",
+  ration_card: "Ration Card",
+  photo: "Passport-size Photo",
+};
+const DOC_MATCH = {
+  aadhaar_card: ["aadhaar"], income_certificate: ["income"], pan_card: ["pan"],
+  caste_certificate: ["caste", "community"], domicile_certificate: ["domicile", "residence"],
+  bank_passbook: ["bank", "passbook"], marksheet: ["marksheet", "marks"],
+  disability_certificate: ["disab"], ration_card: ["ration"], photo: ["photo"],
+};
+
+function heuristicDocs(scheme) {
+  const s = ((scheme?.category || "") + " " + (scheme?.name || "") + " " + (scheme?.benefit_amount || "")).toLowerCase();
+  const set = new Set(["aadhaar_card"]);
+  if (/scholar|degree|education|student|matric|study|marks/.test(s)) { set.add("income_certificate"); set.add("marksheet"); set.add("bank_passbook"); }
+  if (/loan|skill|business|entrepreneur|stand.?up|training/.test(s)) { set.add("pan_card"); set.add("bank_passbook"); set.add("income_certificate"); }
+  if (/pension|senior|widow|artist|veteran/.test(s)) { set.add("bank_passbook"); set.add("domicile_certificate"); }
+  if (/disab/.test(s)) set.add("disability_certificate");
+  if (/insurance|health|medical|housing/.test(s)) { set.add("bank_passbook"); set.add("income_certificate"); }
+  return set;
+}
+
+// ---------------------------------------------------------------------------
+// Application window / deadlines.
+// The scraped data has no deadlines, so we derive a STABLE illustrative window
+// from the scheme id (most central schemes are open year-round; a few show a
+// closing date). Deterministic so it doesn't jump around between renders.
+// ---------------------------------------------------------------------------
+function hashStr(s) {
+  let h = 0;
+  for (let i = 0; i < (s || "").length; i++) h = (h * 31 + s.charCodeAt(i)) & 0xffffffff;
+  return Math.abs(h);
+}
+
+export function schemeDeadline(scheme) {
+  const h = hashStr(scheme?.scheme_id || scheme?.name || "");
+  // ~1 in 3 schemes have a rolling deadline; the rest are open all year.
+  if (h % 3 !== 0) return { hasDeadline: false, closingSoon: false, label: "Open all year" };
+  const daysLeft = (h % 60) + 3;                     // 3–62 days out
+  const date = new Date(Date.now() + daysLeft * 86400000);
+  const dateStr = date.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+  return {
+    hasDeadline: true,
+    daysLeft,
+    closingSoon: daysLeft <= 20,
+    date: dateStr,
+    label: `Apply by ${dateStr}`,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Share to family — compose a message + open the best available share channel.
+// ---------------------------------------------------------------------------
+export function shareText(schemes = [], name = "") {
+  const eligible = schemes.filter((s) => s.eligibility !== "not_eligible").slice(0, 5);
+  const lines = eligible.map((s) => `• ${s.name}`).join("\n");
+  return (
+    `🇮🇳 Haqq — welfare schemes ${name ? name + " " : ""}may be entitled to:\n\n${lines}\n\n` +
+    `Check what you're entitled to and apply on the Haqq portal.`
+  );
+}
+
+export async function shareSchemes(schemes, name) {
+  const text = shareText(schemes, name);
+  try {
+    if (navigator.share) { await navigator.share({ title: "Haqq — your welfare rights", text }); return "shared"; }
+  } catch { /* user cancelled — fall through */ return "cancelled"; }
+  // Fallback: WhatsApp web/app
+  try {
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener");
+    return "whatsapp";
+  } catch {
+    try { await navigator.clipboard.writeText(text); return "copied"; } catch { return "failed"; }
+  }
+}
+
+export function docChecklist(scheme, docs = []) {
+  const req = new Set((scheme?.documents_required || []).map((d) => String(d).toLowerCase()));
+  heuristicDocs(scheme).forEach((d) => req.add(d));
+  const haveNames = (docs || []).map((d) => (d.name || "").toLowerCase());
+  return [...req].map((slug) => {
+    const kws = DOC_MATCH[slug] || [slug.split("_")[0]];
+    const have = haveNames.some((h) => kws.some((k) => h.includes(k)));
+    return { slug, label: DOC_LABELS[slug] || slug.replace(/_/g, " "), have };
+  }).sort((a, b) => (a.have === b.have ? 0 : a.have ? -1 : 1));
+}

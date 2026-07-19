@@ -34,12 +34,35 @@ async function request(path, { method = "GET", body, authed = false } = {}) {
 
 export const api = {
   register: (payload) => request("/api/auth/register", { method: "POST", body: payload }),
-  login: (mobile_number, pin) =>
-    request("/api/login/citizen", { method: "POST", body: { mobile_number, pin } }),
+  // The backend never returns the raw phone (privacy); the citizen typed it, so
+  // we fold it into the saved user on their own device — lets the auto-fill agent
+  // use the mobile number too.
+  login: async (mobile_number, pin) => {
+    const res = await request("/api/login/citizen", { method: "POST", body: { mobile_number, pin } });
+    return { ...res, user: { ...(res.user || {}), mobile_number } };
+  },
   me: () => request("/api/me", { authed: true }),
   mySchemes: (limit = 20) => request(`/api/me/schemes?limit=${limit}`, { authed: true }),
   searchSchemes: (q, limit = 12) =>
     request(`/api/me/schemes/search?q=${encodeURIComponent(q)}&limit=${limit}`, { authed: true }),
+
+  // Applications tracker (tickets)
+  createApplication: (scheme_id, scheme_name, mobile = "") =>
+    request("/api/me/applications", { method: "POST", authed: true, body: { scheme_id, scheme_name, mobile } }),
+  listApplications: () => request("/api/me/applications", { authed: true }),
+  raiseGrievance: (ticket_id, message) =>
+    request(`/api/me/applications/${encodeURIComponent(ticket_id)}/grievance`, { method: "POST", authed: true, body: { message } }),
+
+  // Find help near me (district/state + service points for a pincode)
+  locate: (pincode) => request(`/api/locate?pincode=${encodeURIComponent(pincode)}`, {}),
+
+  // Explain a scheme in very simple language, in the citizen's language
+  explainScheme: (scheme_id, lang = "en") =>
+    request("/api/assistant/explain", { method: "POST", body: { scheme_id, lang } }),
+
+  // Check eligibility for a family member (no account needed)
+  checkRelative: (profile) =>
+    request("/api/schemes/check", { method: "POST", body: profile }),
 
   // DigiLocker (mock-aware: the mock consent URL carries the code, so we can
   // complete the flow client-side for the demo; real providers redirect).

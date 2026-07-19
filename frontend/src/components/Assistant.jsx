@@ -3,6 +3,7 @@ import {
   MessageCircle, X, Send, Mic, MicOff, Volume2, VolumeX, Bot, Loader2, Sparkles,
 } from "lucide-react";
 import { api } from "../api";
+import { useLang, LANGS as UI_LANGS } from "../lib/i18n";
 
 /*
  * Assistant — "Haqq Sahayak": help chatbot + browser voice agent.
@@ -15,19 +16,21 @@ import { api } from "../api";
  *   Supports English (en-IN) and Hindi (hi-IN).
  */
 
-const LANGS = { en: { code: "en-IN", label: "EN" }, hi: { code: "hi-IN", label: "हिं" } };
 const GREET = {
   en: "Namaste 🙏 I'm Haqq Sahayak. Ask me what schemes you're entitled to, or how to apply. You can also tap the mic and speak.",
   hi: "नमस्ते 🙏 मैं हक़ सहायक हूँ। पूछिए आप किन योजनाओं के हक़दार हैं, या आवेदन कैसे करें। आप माइक दबाकर बोल भी सकते हैं।",
+  mr: "नमस्कार 🙏 मी हक़ सहायक आहे. तुम्ही कोणत्या योजनांसाठी पात्र आहात ते विचारा. माइक दाबून बोलूही शकता.",
+  ta: "வணக்கம் 🙏 நான் ஹக் சகாயக். நீங்கள் எந்த திட்டங்களுக்கு தகுதியானவர் என்று கேளுங்கள். மைக்கை அழுத்தி பேசலாம்.",
+  bn: "নমস্কার 🙏 আমি হক় সহায়ক। আপনি কোন প্রকল্পের যোগ্য জানতে জিজ্ঞাসা করুন। মাইকে চেপে বলতেও পারেন।",
 };
 
 const SR = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
 const canTTS = typeof window !== "undefined" && "speechSynthesis" in window;
 
 export default function Assistant() {
+  const { lang, setLang, code } = useLang();
   const [open, setOpen] = useState(false);
-  const [lang, setLang] = useState("en");
-  const [messages, setMessages] = useState([{ role: "assistant", content: GREET.en }]);
+  const [messages, setMessages] = useState([{ role: "assistant", content: GREET[lang] || GREET.en }]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false);
@@ -38,6 +41,13 @@ export default function Assistant() {
   const scrollRef = useRef(null);
   const langRef = useRef(lang);
   langRef.current = lang;
+  const codeRef = useRef(code);
+  codeRef.current = code;
+  const cycleLang = () => {
+    const ids = UI_LANGS.map((l) => l.id);
+    setLang(ids[(ids.indexOf(lang) + 1) % ids.length]);
+  };
+  const langShort = (UI_LANGS.find((l) => l.id === lang) || UI_LANGS[0]).native;
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -48,7 +58,7 @@ export default function Assistant() {
     try {
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = LANGS[langRef.current].code;
+      u.lang = codeRef.current;
       u.rate = 0.98;
       window.speechSynthesis.speak(u);
     } catch { /* ignore */ }
@@ -80,7 +90,7 @@ export default function Assistant() {
     if (listening) { recogRef.current?.stop(); return; }
     const recog = new SR();
     recogRef.current = recog;
-    recog.lang = LANGS[langRef.current].code;
+    recog.lang = codeRef.current;
     recog.interimResults = true;
     recog.continuous = false;
     let finalText = "";
@@ -131,9 +141,9 @@ export default function Assistant() {
               </div>
             </div>
             <div className="flex items-center gap-1">
-              <button onClick={() => setLang(lang === "en" ? "hi" : "en")}
+              <button onClick={cycleLang}
                 title="Switch language" className="text-xs font-bold px-2 py-1 rounded-md bg-white/15 hover:bg-white/25">
-                {LANGS[lang].label}
+                {langShort}
               </button>
               {canTTS && (
                 <button onClick={() => { setVoiceOn((v) => !v); if (voiceOn) window.speechSynthesis.cancel(); }}

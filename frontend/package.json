@@ -12,6 +12,7 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.2.1",
     "@vladmandic/face-api": "^1.7.15",
+    "jspdf": "^2.5.2",
     "lucide-react": "^0.577.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

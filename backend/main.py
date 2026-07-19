@@ -12,6 +12,8 @@ from routes.digilocker_routes import digilocker_router
 from routes.kyc_routes import kyc_router
 from routes.citizen_routes import citizen_router
 from routes.assistant_routes import assistant_router
+from routes.locate_routes import locate_router
+from routes.schemes_routes import schemes_router
 from db.models import init_db
 from services.auth_service import register_citizen, login_citizen
 
@@ -49,6 +51,8 @@ app.include_router(digilocker_router)
 app.include_router(kyc_router)
 app.include_router(citizen_router)
 app.include_router(assistant_router)
+app.include_router(locate_router)
+app.include_router(schemes_router)
 
 # Enable CORS for frontend
 app.add_middleware(
@@ -73,6 +77,7 @@ class CitizenRegister(BaseModel):
     income_slab: str = ""
     annual_income: int = 0   # exact ₹/year (optional) → definitive eligibility
     occupation: str = ""
+    state: str = ""          # unlocks State-specific schemes
 
 class CitizenLogin(BaseModel):
     mobile_number: str
@@ -188,6 +193,7 @@ async def citizen_register(data: CitizenRegister):
             income_choice=data.income_slab,
             annual_income=data.annual_income,
             occupation_choice=data.occupation,
+            state=data.state,
         )
         return {"success": True, "message": "Registration successful", "profile": profile}
     except ValueError as e:

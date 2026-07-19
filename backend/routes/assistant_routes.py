@@ -58,6 +58,16 @@ class ChatResponse(BaseModel):
     grounded: bool = False
 
 
+class ExplainRequest(BaseModel):
+    scheme_id: str
+    lang: Optional[str] = "en"
+
+
+LANG_NAMES = {
+    "en": "English", "hi": "Hindi", "mr": "Marathi", "ta": "Tamil", "bn": "Bengali",
+}
+
+
 # ---------------------------------------------------------------------------
 # Grounding — build a compact context block from the citizen's data
 # ---------------------------------------------------------------------------
@@ -212,3 +222,33 @@ async def assistant_chat(req: ChatRequest):
         suggestions=_suggestions(grounding),
         grounded=bool(grounding.get("profile")),
     )
+
+
+@assistant_router.post("/explain")
+async def explain_scheme(req: ExplainRequest):
+    """Explain one scheme in very simple language, in the citizen's language."""
+    from services.scheme_cache import get_schemes
+    scheme = next((s for s in get_schemes() if s.get("scheme_id") == req.scheme_id), None)
+    if not scheme:
+        return {"reply": "Sorry, I could not find that scheme."}
+
+    b = scheme.get("benefits", {})
+    benefit = b.get("description", "") if isinstance(b, dict) else str(b)
+    docs = ", ".join(scheme.get("documents_required", []) or []) or "Aadhaar"
+    scheme_text = (
+        f"Scheme name: {scheme.get('name')}\n"
+        f"Category: {scheme.get('category')}\n"
+        f"Benefit: {benefit}\n"
+        f"Documents needed: {docs}"
+    )
+    lang_name = LANG_NAMES.get(req.lang, "English")
+    messages = [
+        {"role": "system", "content": (
+            "You explain one Indian government welfare scheme to a citizen who may have "
+            "low literacy. Use 3–4 very short, simple sentences covering: (1) what the "
+            "scheme gives, (2) who it is for, (3) the first step to apply. No jargon, no "
+            f"markdown. Reply ONLY in {lang_name}.")},
+        {"role": "user", "content": scheme_text},
+    ]
+    reply = _call_groq(messages) or f"{scheme.get('name')}: {benefit}"
+    return {"reply": reply, "scheme_id": req.scheme_id}

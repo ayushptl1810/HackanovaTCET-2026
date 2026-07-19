@@ -8,14 +8,18 @@ All routes require a citizen Bearer token (issued at /api/login/citizen).
 """
 
 import logging
+import os
+import secrets
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
 
 from routes.deps import get_current_citizen
 from services.fuzzy_match import get_top_schemes
 from services.auth_service import get_profile_slabs
 from services.eligibility import evaluate_scheme
 from services.scheme_cache import get_schemes as _get_cached_schemes
+from db.models import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +66,8 @@ async def search_schemes(
             "match_score": elig.score,
             "benefit_amount": b.get("description", "Variable") if isinstance(b, dict) else str(b),
             "category": scheme.get("category", "General"),
+            "documents_required": list(scheme.get("documents_required", []) or []),
+            "official_portal_url": scheme.get("official_portal_url", "") or "",
         })
 
     # Eligible first, then by semantic relevance.
@@ -92,7 +98,125 @@ async def my_schemes(
                 "category": r.category,
                 "conflicts_with": r.conflicts_with,
                 "reasons": r.reasons,
+                "documents_required": r.documents_required or [],
+                "official_portal_url": r.official_portal_url or "",
             }
             for r in results
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# Applications tracker — records a submitted application as a ticket, so the
+# citizen can see the status of everything they've applied for in one place.
+# (In production a ticket is picked up by a CSC operator / pushed to the portal.)
+# ---------------------------------------------------------------------------
+
+class ApplicationCreate(BaseModel):
+    scheme_id: str
+    scheme_name: str = ""
+    mobile: str = ""       # citizen's own number, for a confirmation SMS/WhatsApp
+
+
+class GrievanceCreate(BaseModel):
+    message: str = ""
+
+
+def _scheme_name(scheme_id: str, fallback: str = "") -> str:
+    for s in _get_cached_schemes():
+        if s.get("scheme_id") == scheme_id:
+            return s.get("name", fallback) or fallback
+    return fallback or scheme_id
+
+
+def _notify_confirmation(mobile: str, scheme_name: str, ticket_id: str) -> str:
+    """
+    Best-effort transactional confirmation to the citizen's OWN number.
+    Never raises and never blocks the response; gated by NOTIFICATIONS_ENABLED
+    so demos don't hit Twilio with fake numbers. Returns a short status string.
+    """
+    if not mobile:
+        return "no_mobile"
+    if os.getenv("NOTIFICATIONS_ENABLED", "").lower() not in ("1", "true", "yes"):
+        return "disabled"
+    to = mobile if mobile.startswith("+") else f"+91{mobile.lstrip('0')}"
+    msg = (f"Haqq: Your application for '{scheme_name}' is received. "
+           f"Reference: {ticket_id}. Track it on the Haqq portal.")
+    try:
+        from utils.notifications import send_sms, send_whatsapp
+        res = send_sms(to, msg)
+        if not res.get("success"):
+            res = send_whatsapp(to, msg)
+        return "sent" if res.get("success") else "failed"
+    except Exception as exc:
+        logger.warning("confirmation notify failed: %s", exc)
+        return "failed"
+
+
+@citizen_router.post("/applications")
+async def create_application(body: ApplicationCreate, citizen: dict = Depends(get_current_citizen)):
+    """Record a submitted application for the citizen and return its reference."""
+    ticket_id = "HAQ-" + secrets.token_hex(3).upper()   # e.g. HAQ-9F2A1C
+    phone_hmac = citizen.get("phone_hmac")
+    with get_db() as conn:
+        conn.execute(
+            """INSERT INTO tickets (ticket_id, phone_hmac, scheme_id, status, priority)
+               VALUES (?, ?, ?, 'submitted', 0)""",
+            (ticket_id, phone_hmac, body.scheme_id),
+        )
+    scheme_name = _scheme_name(body.scheme_id, body.scheme_name)
+    notify = _notify_confirmation(body.mobile, scheme_name, ticket_id)
+    return {
+        "success": True,
+        "notification": notify,   # sent | failed | disabled | no_mobile
+        "application": {
+            "ticket_id": ticket_id,
+            "scheme_id": body.scheme_id,
+            "scheme_name": scheme_name,
+            "status": "submitted",
+        },
+    }
+
+
+@citizen_router.post("/applications/{ticket_id}/grievance")
+async def raise_grievance(ticket_id: str, body: GrievanceCreate, citizen: dict = Depends(get_current_citizen)):
+    """Raise a grievance against one of the citizen's applications (flags it for review)."""
+    phone_hmac = citizen.get("phone_hmac")
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT ticket_id FROM tickets WHERE ticket_id = ? AND phone_hmac = ?",
+            (ticket_id, phone_hmac),
+        ).fetchone()
+        if not row:
+            return {"success": False, "message": "Application not found"}
+        conn.execute(
+            "UPDATE tickets SET status = 'grievance_raised', priority = 1, updated_at = CURRENT_TIMESTAMP WHERE ticket_id = ?",
+            (ticket_id,),
+        )
+    grievance_id = "GRV-" + secrets.token_hex(3).upper()
+    logger.info("Grievance %s raised on %s: %s", grievance_id, ticket_id, body.message[:200])
+    return {"success": True, "grievance_id": grievance_id, "ticket_id": ticket_id, "status": "grievance_raised"}
+
+
+@citizen_router.get("/applications")
+async def list_applications(citizen: dict = Depends(get_current_citizen)):
+    """List the citizen's applications (most recent first) with resolved names."""
+    phone_hmac = citizen.get("phone_hmac")
+    with get_db() as conn:
+        rows = conn.execute(
+            """SELECT ticket_id, scheme_id, status, created_at, updated_at
+               FROM tickets WHERE phone_hmac = ? ORDER BY created_at DESC""",
+            (phone_hmac,),
+        ).fetchall()
+    apps = [
+        {
+            "ticket_id": r["ticket_id"],
+            "scheme_id": r["scheme_id"],
+            "scheme_name": _scheme_name(r["scheme_id"]),
+            "status": r["status"],
+            "created_at": r["created_at"],
+            "updated_at": r["updated_at"],
+        }
+        for r in rows
+    ]
+    return {"success": True, "count": len(apps), "applications": apps}

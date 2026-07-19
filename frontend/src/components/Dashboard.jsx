@@ -3,26 +3,75 @@ import toast from "react-hot-toast";
 import {
   Search, Sparkles, FileCheck2, FolderDown, Loader2, ChevronDown, ChevronUp,
   ShieldCheck, LayoutGrid, BadgeIndianRupee, ScanFace, Bot, TrendingUp, CircleAlert,
-  CheckCircle2,
+  CheckCircle2, ClipboardList, Clock, BookOpen, Share2, Users, MessageSquareWarning,
 } from "lucide-react";
 import GovHeader from "./GovHeader";
 import GovFooter from "./GovFooter";
 import FaceGate from "./FaceGate";
 import AutofillAgent from "./AutofillAgent";
+import HelpCentreFinder from "./HelpCentreFinder";
+import ExplainModal from "./ExplainModal";
+import RelativeCheckModal from "./RelativeCheckModal";
+import LifeEvents from "./LifeEvents";
+import LanguageSwitcher from "./LanguageSwitcher";
 import { api, auth } from "../api";
 import {
   entitlementValue, formatINR, completeness, profileGaps, buildApplicant,
+  schemeDeadline, shareSchemes,
 } from "../lib/rights";
+import { useLang } from "../lib/i18n";
+
+const STATUS_STEPS = ["submitted", "under_review", "approved"];
+const STATUS_LABEL = {
+  submitted: "Submitted", under_review: "Under review", approved: "Approved",
+  grievance_raised: "Grievance raised",
+};
+
+function ApplicationRow({ app, onGrievance }) {
+  const grievance = app.status === "grievance_raised";
+  const idx = grievance ? 0 : Math.max(0, STATUS_STEPS.indexOf(app.status));
+  return (
+    <div className={`border rounded-[var(--radius-sm)] p-3 ${grievance ? "border-[var(--warn)]/50 bg-[var(--warn-bg)]" : "border-[var(--line)]"}`}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-semibold text-sm text-[var(--ink)] truncate">{app.scheme_name}</span>
+        <span className="badge badge-info shrink-0">{app.ticket_id}</span>
+      </div>
+      <div className="mt-2.5 flex items-center gap-1">
+        {STATUS_STEPS.map((s, i) => (
+          <div key={s} className="flex items-center gap-1 flex-1 last:flex-none">
+            <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${i <= idx ? "bg-[var(--green)]" : "bg-[var(--line-strong)]"}`} />
+            {i < STATUS_STEPS.length - 1 && (
+              <div className={`h-0.5 flex-1 ${i < idx ? "bg-[var(--green)]" : "bg-[var(--line-strong)]"}`} />
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="mt-1.5 flex items-center justify-between">
+        <span className={`text-xs flex items-center gap-1 ${grievance ? "text-[var(--warn)] font-semibold" : "text-[var(--muted)]"}`}>
+          <Clock size={11} /> {STATUS_LABEL[app.status] || app.status}
+        </span>
+        {!grievance && (
+          <button onClick={() => onGrievance(app)}
+            className="text-xs font-semibold text-[var(--blue)] flex items-center gap-1">
+            <MessageSquareWarning size={12} /> Raise grievance
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 const verdictBadge = (v) =>
   v === "eligible" ? ["badge-ok", "Eligible"]
   : v === "not_eligible" ? ["badge-err", "Not eligible"]
   : ["badge-warn", "Needs info"];
 
-function SchemeCard({ s, verified, onApply }) {
+function SchemeCard({ s, verified, onApply, onExplain, t }) {
   const [open, setOpen] = useState(false);
   const [cls, label] = verdictBadge(s.eligibility);
   const match = Math.round((s.match_score || 0) * 100);
+  const dl = useMemo(() => schemeDeadline(s), [s]);
+  const tt = (k, fallback) => (t ? t(k) : fallback);
   return (
     <div className="card card-hover p-5 flex flex-col">
       <div className="flex items-start justify-between gap-3">
@@ -31,6 +80,12 @@ function SchemeCard({ s, verified, onApply }) {
           <div className="mt-1 text-xs text-[var(--muted)]">{s.category}</div>
         </div>
         <span className={`badge ${cls} shrink-0`}>{label}</span>
+      </div>
+
+      <div className="mt-2">
+        <span className={`badge ${dl.closingSoon ? "badge-err" : "badge-neutral"}`}>
+          <Clock size={11} /> {dl.hasDeadline ? (dl.closingSoon ? `${tt("badge.closingSoon", "Closing soon")} · ${dl.date}` : dl.label) : tt("badge.openAllYear", "Open all year")}
+        </span>
       </div>
 
       <p className="mt-3 text-sm text-[var(--muted)] line-clamp-2">{s.benefit_amount}</p>
@@ -71,8 +126,16 @@ function SchemeCard({ s, verified, onApply }) {
 
       <button onClick={() => onApply(s)} disabled={s.eligibility === "not_eligible"}
         className="btn btn-primary w-full mt-4 btn-sm">
-        <Bot size={15} /> Auto-fill &amp; Apply
+        <Bot size={15} /> {tt("card.apply", "Auto-fill & Apply")}
       </button>
+      <div className="flex gap-2 mt-2">
+        <button onClick={() => onExplain(s)} className="btn btn-outline btn-sm flex-1">
+          <BookOpen size={14} /> {tt("card.explain", "Explain simply")}
+        </button>
+        <button onClick={() => shareSchemes([s])} className="btn btn-outline btn-sm !px-3" title={tt("card.share", "Share")}>
+          <Share2 size={14} />
+        </button>
+      </div>
     </div>
   );
 }
@@ -138,6 +201,7 @@ function RightsSummary({ schemes, profile, digilocker, onConnect }) {
 }
 
 export default function Dashboard() {
+  const { t } = useLang();
   const [profile, setProfile] = useState(null);
   const [schemes, setSchemes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -148,10 +212,18 @@ export default function Dashboard() {
   const [digilocker, setDigilocker] = useState(null);   // DigiLocker identity profile
   const [connecting, setConnecting] = useState(false);
   const [verified, setVerified] = useState(false);       // face-verified this session
+  const [applications, setApplications] = useState([]);
 
   // Face gate + autofill agent orchestration
   const [faceGate, setFaceGate] = useState(null);        // { purpose, onPass }
   const [agentScheme, setAgentScheme] = useState(null);
+  const [explainScheme, setExplainScheme] = useState(null);
+  const [showRelative, setShowRelative] = useState(false);
+
+  const loadApplications = async () => {
+    try { const r = await api.listApplications(); setApplications(r.applications || []); }
+    catch { /* non-fatal */ }
+  };
 
   useEffect(() => {
     (async () => {
@@ -162,16 +234,28 @@ export default function Dashboard() {
       } catch (e) { toast.error(e.message); }
       finally { setLoading(false); }
     })();
+    loadApplications();
   }, []);
 
-  const runSearch = async () => {
-    if (q.trim().length < 2) return;
-    setSearching(true); setMode("search");
+  const runSearch = async (query) => {
+    const term = (typeof query === "string" ? query : q).trim();
+    if (term.length < 2) return;
+    setQ(term); setSearching(true); setMode("search");
     try {
-      const r = await api.searchSchemes(q.trim());
+      const r = await api.searchSchemes(term);
       setSchemes(r.results || []);
     } catch (e) { toast.error(e.message); }
     finally { setSearching(false); }
+  };
+
+  const raiseGrievance = async (app) => {
+    const msg = window.prompt(`Describe your issue with "${app.scheme_name}" (${app.ticket_id}):`, "");
+    if (msg === null) return;
+    try {
+      const r = await api.raiseGrievance(app.ticket_id, msg || "");
+      toast.success(`Grievance registered — ${r.grievance_id}`);
+      loadApplications();
+    } catch (e) { toast.error(e.message || "Could not raise grievance"); }
   };
 
   const showEligible = async () => {
@@ -229,29 +313,42 @@ export default function Dashboard() {
         <div className="card p-5 md:p-6 flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-xl md:text-2xl font-extrabold flex items-center gap-2">
-              Namaste{profile?.name ? `, ${profile.name}` : ""} 🙏
+              {t("dash.greeting")}{profile?.name ? `, ${profile.name}` : ""} 🙏
               {verified && <span className="badge badge-ok"><ScanFace size={12} /> Verified</span>}
             </h1>
-            <p className="text-sm text-[var(--muted)] mt-0.5">
-              Here are the welfare schemes you're entitled to.
-            </p>
+            <p className="text-sm text-[var(--muted)] mt-0.5">{t("dash.subtitle")}</p>
           </div>
-          {profile && (
-            <div className="flex flex-wrap gap-2">
-              <span className="badge badge-neutral">Age {profile.age_slab || "—"}</span>
-              <span className="badge badge-neutral">{profile.gender || "—"}</span>
-              <span className="badge badge-neutral">
-                {profile.annual_income ? `₹${profile.annual_income}/yr` : (profile.income_slab || "—")}
-              </span>
-              <span className="badge badge-neutral">{profile.occupation || "—"}</span>
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <button onClick={() => setShowRelative(true)} className="btn btn-outline btn-sm">
+              <Users size={14} /> {t("dash.checkRelative")}
+            </button>
+            <LanguageSwitcher />
+          </div>
         </div>
+
+        {profile && (
+          <div className="flex flex-wrap gap-2 mt-3">
+            <span className="badge badge-neutral">Age {profile.age_slab || "—"}</span>
+            <span className="badge badge-neutral">{profile.gender || "—"}</span>
+            <span className="badge badge-neutral">
+              {profile.annual_income ? `₹${profile.annual_income}/yr` : (profile.income_slab || "—")}
+            </span>
+            <span className="badge badge-neutral">{profile.occupation || "—"}</span>
+            {profile.state && <span className="badge badge-neutral">{profile.state}</span>}
+          </div>
+        )}
+
+        {/* Life-event journeys */}
+        {mode === "eligible" && (
+          <div className="mt-6">
+            <LifeEvents onPick={(query) => runSearch(query)} />
+          </div>
+        )}
 
         {/* Semantic search */}
         <div className="card p-5 md:p-6 mt-6">
           <label className="text-sm font-bold flex items-center gap-2 text-[var(--navy)]">
-            <Sparkles size={16} /> Describe what help you need — in your own words
+            <Sparkles size={16} /> {t("dash.describe")}
           </label>
           <div className="mt-3 flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
@@ -264,8 +361,8 @@ export default function Dashboard() {
                 onKeyDown={(e) => e.key === "Enter" && runSearch()}
               />
             </div>
-            <button onClick={runSearch} disabled={searching} className="btn btn-primary">
-              {searching ? <Loader2 className="animate-spin" size={16} /> : <Search size={16} />} Search
+            <button onClick={() => runSearch()} disabled={searching} className="btn btn-primary">
+              {searching ? <Loader2 className="animate-spin" size={16} /> : <Search size={16} />} {t("dash.search")}
             </button>
           </div>
           {mode === "search" && (
@@ -278,10 +375,21 @@ export default function Dashboard() {
         <div className="grid lg:grid-cols-3 gap-6 mt-6">
           {/* Schemes */}
           <section className="lg:col-span-2">
+            {applications.length > 0 && mode === "eligible" && (
+              <div className="card p-5 md:p-6 mb-6">
+                <div className="flex items-center gap-2 font-bold text-[var(--ink)] mb-3">
+                  <ClipboardList size={17} className="text-[var(--navy)]" /> {t("dash.myApplications")}
+                  <span className="badge badge-neutral ml-auto">{applications.length}</span>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {applications.map((a) => <ApplicationRow key={a.ticket_id} app={a} onGrievance={raiseGrievance} />)}
+                </div>
+              </div>
+            )}
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-bold text-[var(--ink)] flex items-center gap-2">
                 <LayoutGrid size={17} className="text-[var(--navy)]" />
-                {mode === "search" ? `Results for “${q}”` : "Your eligible schemes"}
+                {mode === "search" ? `Results for “${q}”` : t("dash.eligible")}
               </h2>
               <span className="badge badge-neutral">{schemes.length} found</span>
             </div>
@@ -294,7 +402,8 @@ export default function Dashboard() {
             ) : (
               <div className="grid sm:grid-cols-2 gap-4">
                 {schemes.map((s) => (
-                  <SchemeCard key={s.scheme_id} s={s} verified={verified} onApply={applyToScheme} />
+                  <SchemeCard key={s.scheme_id} s={s} verified={verified} onApply={applyToScheme}
+                    onExplain={setExplainScheme} t={t} />
                 ))}
               </div>
             )}
@@ -340,6 +449,8 @@ export default function Dashboard() {
               )}
             </div>
 
+            <HelpCentreFinder />
+
             <div className="card p-5 md:p-6 bg-[var(--blue-50)] border-[var(--blue-100)]">
               <div className="flex items-center gap-2 font-bold text-[var(--navy)]">
                 <ShieldCheck size={18} /> Your privacy
@@ -368,12 +479,26 @@ export default function Dashboard() {
           applicant={applicant}
           docs={docs}
           onClose={() => setAgentScheme(null)}
-          onSubmitted={() => {
-            toast.success("Application prepared — review the highlighted fields and submit.");
+          onSubmitted={async (scheme) => {
+            try {
+              const mobile = auth.user()?.mobile_number || "";
+              const r = await api.createApplication(scheme.scheme_id, scheme.name, mobile);
+              const sent = r.notification === "sent";
+              toast.success(`Application submitted — ref ${r.application.ticket_id}${sent ? " · SMS sent" : ""}`);
+              loadApplications();
+            } catch (e) {
+              toast.error(e.message || "Could not submit application");
+            }
             setAgentScheme(null);
           }}
         />
       )}
+
+      {/* Explain simply */}
+      <ExplainModal scheme={explainScheme} onClose={() => setExplainScheme(null)} />
+
+      {/* Check for a family member */}
+      {showRelative && <RelativeCheckModal onClose={() => setShowRelative(false)} />}
 
       <GovFooter />
     </div>

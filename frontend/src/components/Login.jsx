@@ -10,6 +10,12 @@ const AGE    = [["1", "Below 18"], ["2", "18–35"], ["3", "36–59"], ["4", "60
 const GENDER = [["1", "Male"], ["2", "Female"], ["3", "Other"]];
 const INCOME = [["1", "Below ₹2L"], ["2", "₹2L–5L"], ["3", "Above ₹5L"]];
 const OCC    = [["1", "Student"], ["2", "Farmer"], ["3", "Govt employee"], ["4", "Other"]];
+const STATES = [
+  "", "Andhra Pradesh", "Assam", "Bihar", "Chhattisgarh", "Delhi", "Goa", "Gujarat",
+  "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh",
+  "Maharashtra", "Odisha", "Punjab", "Rajasthan", "Tamil Nadu", "Telangana",
+  "Uttar Pradesh", "Uttarakhand", "West Bengal",
+].map((s) => [s, s || "Select State"]);
 
 export default function Login({ onLoginSuccess }) {
   const nav = useNavigate();
@@ -17,7 +23,7 @@ export default function Login({ onLoginSuccess }) {
   const [busy, setBusy] = useState(false);
   const [f, setF] = useState({
     mobile_number: "", pin: "", age_slab: "2", gender: "1",
-    income_slab: "1", annual_income: "", occupation: "1",
+    income_slab: "1", annual_income: "", occupation: "1", state: "",
   });
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
 
@@ -44,6 +50,7 @@ export default function Login({ onLoginSuccess }) {
         mobile_number: f.mobile_number, pin: f.pin,
         age_slab: f.age_slab, gender: f.gender, income_slab: f.income_slab,
         annual_income: Number(f.annual_income) || 0, occupation: f.occupation,
+        state: f.state,
       });
       toast.success("Registered — logging you in");
       finish(await api.login(f.mobile_number, f.pin));
@@ -139,6 +146,15 @@ export default function Login({ onLoginSuccess }) {
                   <Select label="Gender" k="gender" opts={GENDER} />
                   <Select label="Income band" k="income_slab" opts={INCOME} />
                   <Select label="Occupation" k="occupation" opts={OCC} />
+                  <label className="block col-span-2">
+                    <span className="label">State</span>
+                    <select className="field mt-1.5" value={f.state} onChange={set("state")}>
+                      {STATES.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                    </select>
+                    <span className="text-xs text-[var(--muted)] mt-1 block">
+                      Unlocks State-specific welfare schemes.
+                    </span>
+                  </label>
                   <label className="block col-span-2">
                     <span className="label">Exact annual income (₹, optional)</span>
                     <input className="field mt-1.5" inputMode="numeric" placeholder="e.g. 120000"
