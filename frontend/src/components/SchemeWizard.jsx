@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import { api } from "../api";
 import { ArrowRight, ArrowLeft, CheckCircle2, User, MapPin, Briefcase, IndianRupee } from "lucide-react";
 import GovHeader from "./GovHeader";
@@ -32,8 +33,8 @@ export default function SchemeWizard() {
       nav("/results", { state: { results: res.schemes, profile: payload } });
     } catch (e) {
       console.error(e);
-      // Fallback
-      nav("/login");
+      toast.error(e.message || "Couldn't fetch schemes just now. Please try again.");
+      setBusy(false);   // stay on the form so the user can retry
     }
   };
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
+import toast from "react-hot-toast";
 import { ChevronRight, ExternalLink, Share2, Facebook, Twitter, Linkedin, Mail } from "lucide-react";
 import { api } from "../api";
 import GovHeader from "./GovHeader";
@@ -64,8 +65,9 @@ export default function SchemeDetails() {
   const shareTitle = scheme?.name || 'Government Scheme';
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(shareUrl);
-    alert('URL copied to clipboard!');
+    navigator.clipboard.writeText(shareUrl)
+      .then(() => toast.success("Link copied to clipboard"))
+      .catch(() => toast.error("Could not copy the link"));
   };
 
   return (
@@ -214,11 +216,31 @@ export default function SchemeDetails() {
               <div className="bg-gray-50 border border-gray-100 rounded-lg p-5">
                 <h3 className="font-bold text-sm text-[var(--ink)] mb-3 border-b pb-2">Share</h3>
                 <div className="flex items-center gap-2 text-gray-500">
-                  <Mail onClick={() => window.open(`mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(shareUrl)}`)} className="cursor-pointer hover:text-blue-500" size={18} />
-                  <Facebook onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, '_blank')} className="cursor-pointer hover:text-blue-600" size={18} />
-                  <Twitter onClick={() => window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareTitle)}`, '_blank')} className="cursor-pointer hover:text-blue-400" size={18} />
-                  <Linkedin onClick={() => window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`, '_blank')} className="cursor-pointer hover:text-blue-700" size={18} />
-                  <Share2 onClick={handleCopyLink} className="cursor-pointer hover:text-green-500 ml-auto" size={18} />
+                  <button type="button" aria-label="Share by email" title="Share by email"
+                    onClick={() => window.open(`mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(shareUrl)}`)}
+                    className="p-1 rounded hover:text-blue-500 hover:bg-gray-100 transition-colors">
+                    <Mail size={18} />
+                  </button>
+                  <button type="button" aria-label="Share on Facebook" title="Share on Facebook"
+                    onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, '_blank', 'noopener')}
+                    className="p-1 rounded hover:text-blue-600 hover:bg-gray-100 transition-colors">
+                    <Facebook size={18} />
+                  </button>
+                  <button type="button" aria-label="Share on X (Twitter)" title="Share on X (Twitter)"
+                    onClick={() => window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareTitle)}`, '_blank', 'noopener')}
+                    className="p-1 rounded hover:text-blue-400 hover:bg-gray-100 transition-colors">
+                    <Twitter size={18} />
+                  </button>
+                  <button type="button" aria-label="Share on LinkedIn" title="Share on LinkedIn"
+                    onClick={() => window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`, '_blank', 'noopener')}
+                    className="p-1 rounded hover:text-blue-700 hover:bg-gray-100 transition-colors">
+                    <Linkedin size={18} />
+                  </button>
+                  <button type="button" aria-label="Copy link" title="Copy link"
+                    onClick={handleCopyLink}
+                    className="p-1 rounded hover:text-green-500 hover:bg-gray-100 transition-colors ml-auto">
+                    <Share2 size={18} />
+                  </button>
                 </div>
               </div>
             </div>

@@ -1,9 +1,12 @@
-import { useState } from "react";
 import NationalEmblem from "./gov/NationalEmblem";
+import { useLang } from "../lib/i18n";
 
 // Minimalistic Government-of-India style utility strip
 export default function GovTopBar() {
-  const [lang, setLang] = useState("EN");
+  // Drive the real app-wide i18n (shared with the dashboard, assistant & voice),
+  // toggling between English and Hindi — the two most common choices here.
+  const { lang, setLang } = useLang();
+  const isHindi = lang === "hi";
 
   const setScale = (s) =>
     document.documentElement.style.setProperty("--font-scale", String(s));
@@ -29,10 +32,10 @@ export default function GovTopBar() {
           </div>
           <span className="hidden sm:inline opacity-20">|</span>
           <button
-            onClick={() => setLang(lang === "EN" ? "HI" : "EN")}
+            onClick={() => setLang(isHindi ? "en" : "hi")}
             className="px-2 py-0.5 rounded text-[0.65rem] border border-transparent hover:border-[var(--line-strong)] hover:bg-white text-[var(--navy)] font-semibold transition-all"
           >
-            {lang === "EN" ? "हिंदी" : "English"}
+            {isHindi ? "English" : "हिंदी"}
           </button>
         </div>
       </div>

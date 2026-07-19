@@ -1,11 +1,38 @@
+import { Link } from "react-router-dom";
 import HaqqLogo from "./HaqqLogo";
 import NationalEmblem from "./gov/NationalEmblem";
 import IndianFlag from "./gov/IndianFlag";
 
+// Every footer link routes to a real, reachable destination in the app
+// (internal `to`, or a hash section on the landing page). No dead "#" links.
 const columns = [
-  { title: "Find welfare", links: ["Find Schemes", "Check Eligibility", "Scholarships", "Skill & Loans"] },
-  { title: "Documents", links: ["DigiLocker", "Aadhaar", "Voice Access (IVR)", "Common Service Centres"] },
-  { title: "Support", links: ["Accessibility", "Privacy (DPDP)", "Grievance Redressal", "Contact Us"] },
+  {
+    title: "Find welfare",
+    links: [
+      { label: "Find Schemes", to: "/find" },
+      { label: "Check Eligibility", to: "/find" },
+      { label: "Browse Catalog", to: "/schemes" },
+      { label: "Scholarships & Loans", to: "/schemes" },
+    ],
+  },
+  {
+    title: "Documents",
+    links: [
+      { label: "DigiLocker", to: "/login" },
+      { label: "Aadhaar", to: "/login" },
+      { label: "Voice Access", to: "/login" },
+      { label: "Common Service Centres", to: "/find" },
+    ],
+  },
+  {
+    title: "Support",
+    links: [
+      { label: "How it works", to: "/#how" },
+      { label: "Accessibility", to: "/#about" },
+      { label: "Privacy (DPDP)", to: "/#about" },
+      { label: "Grievance Redressal", to: "/login" },
+    ],
+  },
 ];
 
 export default function GovFooter() {
@@ -35,8 +62,8 @@ export default function GovFooter() {
                 <h4 className="font-heading font-bold text-[var(--ink)] mb-4 text-[15px] uppercase tracking-wider">{c.title}</h4>
                 <ul className="space-y-3 text-[15px] font-medium text-[var(--muted)]">
                   {c.links.map((l) => (
-                    <li key={l}>
-                      <a href="#" className="hover:text-blue-600 transition-colors">{l}</a>
+                    <li key={l.label}>
+                      <Link to={l.to} className="hover:text-blue-600 transition-colors">{l.label}</Link>
                     </li>
                   ))}
                 </ul>

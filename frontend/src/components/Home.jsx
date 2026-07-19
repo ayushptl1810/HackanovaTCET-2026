@@ -63,7 +63,7 @@ export default function Home() {
               Let the AI do the work.
             </h1>
             <p className="mt-6 text-lg md:text-xl text-[var(--muted)] max-w-xl leading-relaxed">
-              Haqq is your personal AI agent designed to spread knowledge about welfare schemes. It finds what you qualify for, fetches your documents, and automatically fills out applications on your behalf.
+              Haqq is your personal AI agent designed to spread knowledge about welfare schemes. It finds what you qualify for, fetches your documents, and fills out your applications — ready for you to review and submit.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
               <Link to={loggedIn ? "/dashboard" : "/find"} className="btn btn-primary btn-lg group shadow-blue-900/10 hover:shadow-blue-900/20">
@@ -80,7 +80,7 @@ export default function Home() {
                 <Bot size={24} /> Haqq Sahayak AI Agent
               </div>
               <p className="text-[15px] font-medium text-[var(--body)] leading-relaxed">
-                "Namaste! I am the Haqq AI agent. You don't have to navigate confusing government portals anymore. Just tell me what you need, and I will automatically fetch your DigiLocker documents and submit the forms on your behalf."
+                "Namaste! I am the Haqq AI agent. You don't have to navigate confusing government portals anymore. Just tell me what you need, and I will fetch your DigiLocker documents and fill out the forms for you — you simply review and submit."
               </p>
             </div>
           </div>
@@ -172,7 +172,7 @@ export default function Home() {
             </div>
             <h3 className="font-heading mt-6 text-xl font-bold">2. Agent fetches documents</h3>
             <p className="mt-3 text-[15px] text-[var(--muted)] max-w-xs mx-auto leading-relaxed">
-              With your one-time consent, the agent automatically securely fetches your Aadhaar, income certificates, and cast certificates directly from DigiLocker.
+              With your one-time consent, the agent securely fetches your Aadhaar, income certificates, and caste certificates directly from DigiLocker.
             </p>
           </div>
 
@@ -203,7 +203,7 @@ export default function Home() {
                 This is a project dedicated to spreading knowledge about different government schemes and ensuring welfare reaches every citizen. 
               </p>
               <p>
-                Haqq is a website powered by a state-of-the-art AI agent that does the work on your behalf. Instead of you having to search for schemes, figure out if you're eligible, gather documents, and fill out endless forms, the agent handles the entire process for you automatically.
+                Haqq is a website powered by a state-of-the-art AI agent that does the heavy lifting for you. Instead of you having to search for schemes, figure out if you're eligible, gather documents, and fill out endless forms, the agent prepares everything — and you stay in control of the final review and submission.
               </p>
               <p>
                 By breaking down language barriers and technological hurdles, we ensure that no citizen is left behind.

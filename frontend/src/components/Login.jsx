@@ -5,6 +5,7 @@ import { ShieldCheck, Phone, KeyRound, Loader2, Languages, PhoneCall, Sparkles }
 import GovHeader from "./GovHeader";
 import GovFooter from "./GovFooter";
 import { api, auth } from "../api";
+import { LANGS } from "../lib/i18n";
 
 const AGE    = [["1", "Below 18"], ["2", "18–35"], ["3", "36–59"], ["4", "60+"]];
 const GENDER = [["1", "Male"], ["2", "Female"], ["3", "Other"]];
@@ -38,8 +39,8 @@ export default function Login({ onLoginSuccess }) {
     if (!/^\d{10}$/.test(f.mobile_number)) return toast.error("Enter a valid 10-digit mobile number");
     if (f.pin.length < 4 || f.pin.length > 6) return toast.error("PIN must be 4–6 digits");
     setBusy(true);
-    try { finish(await api.demoLogin()); }
-    catch (e) { toast.error(e.message); }
+    try { finish(await api.login(f.mobile_number, f.pin)); }
+    catch (e) { toast.error(e.message || "Invalid mobile number or PIN"); }
     finally { setBusy(false); }
   };
 
@@ -111,8 +112,8 @@ export default function Login({ onLoginSuccess }) {
                 <PhoneCall size={20} />
               </div>
               <div>
-                <div className="font-heading font-bold text-white text-[16px]">Prefer to call?</div>
-                <div className="text-[14px] text-white/70 font-medium mt-0.5">Dial our toll-free IVR to find schemes by voice.</div>
+                <div className="font-heading font-bold text-white text-[16px]">Prefer to speak?</div>
+                <div className="text-[14px] text-white/70 font-medium mt-0.5">Tap the voice assistant at the bottom-right and just say what you need.</div>
               </div>
             </div>
           </div>
@@ -132,7 +133,7 @@ export default function Login({ onLoginSuccess }) {
 
             <div className="glass-card rounded-[24px] p-6 md:p-8 shadow-xl shadow-blue-900/5 bg-white border border-gray-100">
               <div className="flex items-center justify-center gap-2 text-[var(--navy)] text-[13px] font-bold mb-8 bg-blue-50 py-2 rounded-xl border border-blue-100/50">
-                <Languages size={16} className="text-blue-600" /> Available in 22 Indian languages
+                <Languages size={16} className="text-blue-600" /> Available in {LANGS.length} Indian languages
               </div>
 
               <div className="flex rounded-xl bg-gray-100/80 p-1.5 mb-8 border border-white/50 shadow-inner">
@@ -151,8 +152,8 @@ export default function Login({ onLoginSuccess }) {
                   setBusy(true);
                   try {
                     finish(await api.demoLogin());   // seeds & signs in as Ayush Patel
-                  } catch (e) {
-                    import("react-hot-toast").then((m) => m.default.error("Demo login failed"));
+                  } catch {
+                    toast.error("Demo login failed");
                   } finally {
                     setBusy(false);
                   }

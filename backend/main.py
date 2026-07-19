@@ -54,10 +54,15 @@ app.include_router(assistant_router)
 app.include_router(locate_router)
 app.include_router(schemes_router)
 
-# Enable CORS for frontend
+# Enable CORS for the frontend.
+# NOTE: allow_origins=["*"] together with allow_credentials=True is rejected by
+# browsers (the wildcard is invalid for credentialed requests). We list explicit
+# dev origins instead; override in production via CORS_ORIGINS (comma-separated).
+_default_origins = "http://localhost:5173,http://127.0.0.1:5173"
+_cors_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", _default_origins).split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify the actual frontend URL
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
