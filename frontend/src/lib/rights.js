@@ -204,7 +204,7 @@ export function shareText(schemes = [], name = "") {
   const eligible = schemes.filter((s) => s.eligibility !== "not_eligible").slice(0, 5);
   const lines = eligible.map((s) => `• ${s.name}`).join("\n");
   return (
-    `🇮🇳 Haqq — welfare schemes ${name ? name + " " : ""}may be entitled to:\n\n${lines}\n\n` +
+    `Haqq — welfare schemes ${name ? name + " " : ""}may be entitled to:\n\n${lines}\n\n` +
     `Check what you're entitled to and apply on the Haqq portal.`
   );
 }

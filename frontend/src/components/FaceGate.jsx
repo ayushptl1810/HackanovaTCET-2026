@@ -19,14 +19,20 @@ function loadModel() {
     _modelPromise = (async () => {
       try { await faceapi.tf.setBackend("webgl"); } catch { /* fall back to cpu */ }
       await faceapi.tf.ready();
-      await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
-    })();
+      if (!faceapi.nets.tinyFaceDetector.isLoaded) {
+        await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
+      }
+    })().catch((e) => {
+      // Don't cache a rejected promise — otherwise every retry fails forever.
+      _modelPromise = null;
+      throw e;
+    });
   }
   return _modelPromise;
 }
 
 const STABLE_HITS_REQUIRED = 6;   // ~1.2s of continuous detection @ 200ms
-const SCORE_THRESHOLD = 0.5;
+const SCORE_THRESHOLD = 0.45;     // TinyFaceDetector confidence for a real face
 
 export default function FaceGate({ open, purpose = "verify your identity", onVerified, onCancel }) {
   const videoRef = useRef(null);
@@ -82,12 +88,15 @@ export default function FaceGate({ open, purpose = "verify your identity", onVer
         setStatus("scanning");
 
         const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: SCORE_THRESHOLD });
+        let detecting = false;   // guard: a detection can take >200ms — don't stack them
         loopRef.current = setInterval(async () => {
           const video = videoRef.current;
-          if (!video || video.readyState < 2 || doneRef.current) return;
+          if (!video || video.readyState < 2 || doneRef.current || detecting) return;
+          detecting = true;
           let det;
           try { det = await faceapi.detectSingleFace(video, options); }
-          catch { return; }
+          catch { detecting = false; return; }
+          detecting = false;
 
           const canvas = canvasRef.current;
           if (canvas) {

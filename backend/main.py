@@ -217,6 +217,33 @@ async def citizen_login(data: CitizenLogin):
         "user": {**profile, "type": "citizen"},
     }
 
+@app.post("/api/login/demo")
+async def demo_login():
+    """
+    One-tap demo sign-in as the sample citizen "Ayush Patel".
+
+    Upserts his profile (name + exact income so every matched scheme evaluates
+    to genuinely ELIGIBLE) and returns a citizen token. His DigiLocker identity
+    (also Ayush Patel, the default mock citizen) then matches end-to-end.
+    """
+    from services.auth_service import ensure_demo_citizen
+    from core.security import create_access_token
+    phone = "9876543210"
+    profile = ensure_demo_citizen(
+        phone=phone, name="Ayush Patel",
+        age_slab="18-35", gender="M", income_slab="<2L",
+        annual_income=120000, occupation="student", state="Delhi",
+    )
+    token = create_access_token(subject=phone, role="citizen")
+    return {
+        "success": True,
+        "message": "Demo login successful",
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {**profile, "type": "citizen", "mobile_number": phone},
+    }
+
+
 @app.post("/api/login/csc")
 async def csc_login(data: CSCLogin):
     user = MOCK_CSC_USERS.get(data.csc_id)

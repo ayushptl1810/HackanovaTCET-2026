@@ -81,6 +81,48 @@ def register_citizen(
     return get_profile_by_phone(phone)
 
 
+def ensure_demo_citizen(
+    phone: str,
+    name: str,
+    age_slab: str,
+    gender: str,
+    income_slab: str,
+    annual_income: int,
+    occupation: str,
+    state: str,
+    pin: str = "1234",
+) -> Dict[str, Any]:
+    """
+    Idempotently create/refresh a demo citizen with a real NAME and STORED-format
+    slabs (e.g. age_slab='18-35', gender='M', income_slab='<2L'). Used by the
+    one-tap demo login so the whole app (greeting, auto-fill, applications,
+    DigiLocker match) shows a consistent identity. Safe to call repeatedly.
+    """
+    hmac_key = phone_to_hmac(phone)
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT id FROM citizen_profiles WHERE phone_hmac = ?", (hmac_key,)
+        ).fetchone()
+        if row:
+            conn.execute(
+                """UPDATE citizen_profiles
+                   SET name=?, age_slab=?, gender=?, income_slab=?,
+                       annual_income=?, occupation=?, state=? WHERE phone_hmac=?""",
+                (name, age_slab, gender, income_slab, int(annual_income or 0),
+                 occupation, state, hmac_key),
+            )
+        else:
+            conn.execute(
+                """INSERT INTO citizen_profiles
+                   (phone_hmac, pin_hash, name, age_slab, gender, income_slab,
+                    annual_income, occupation, state, preferred_lang, verified_tier)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'hi', 1)""",
+                (hmac_key, hash_pin(pin), name, age_slab, gender, income_slab,
+                 int(annual_income or 0), occupation, state),
+            )
+    return get_profile_by_phone(phone)
+
+
 def login_citizen(phone: str, pin: str) -> Optional[Dict[str, Any]]:
     """
     Verify PIN for a registered citizen.

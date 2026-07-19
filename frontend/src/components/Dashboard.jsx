@@ -3,7 +3,7 @@ import toast from "react-hot-toast";
 import {
   Search, Sparkles, FileCheck2, FolderDown, Loader2, ChevronDown, ChevronUp,
   ShieldCheck, LayoutGrid, BadgeIndianRupee, ScanFace, Bot, TrendingUp, CircleAlert,
-  CheckCircle2, ClipboardList, Clock, BookOpen, Share2, Users, MessageSquareWarning,
+  CheckCircle2, ClipboardList, Clock, BookOpen, Share2, Users, MessageSquareWarning, HandHeart,
 } from "lucide-react";
 import GovHeader from "./GovHeader";
 import GovFooter from "./GovFooter";
@@ -318,7 +318,8 @@ export default function Dashboard() {
         <div className="glass-card p-6 md:p-8 flex flex-wrap items-center justify-between gap-6 rounded-[24px]">
           <div>
             <h1 className="font-heading text-2xl md:text-3xl font-extrabold flex items-center gap-3">
-              {t("dash.greeting")}{profile?.name ? `, ${profile.name}` : ""} 🙏
+              <HandHeart size={26} className="text-[var(--saffron)] shrink-0" />
+              {t("dash.greeting")}{profile?.name ? `, ${profile.name}` : ""}
               {verified && <span className="badge badge-ok shadow-sm px-3 py-1 bg-green-50"><ScanFace size={14} className="mr-1" /> Verified</span>}
             </h1>
             <p className="text-[15px] font-medium text-[var(--muted)] mt-2">{t("dash.subtitle")}</p>

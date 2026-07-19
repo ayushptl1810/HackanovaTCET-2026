@@ -147,24 +147,10 @@ export default function Login({ onLoginSuccess }) {
               <button
                 onClick={async () => {
                   setBusy(true);
-                  const demoData = {
-                    mobile_number: "9876543210", pin: "1234",
-                    age_slab: "2", gender: "1", income_slab: "1",
-                    occupation: "1", state: "Maharashtra"
-                  };
                   try {
-                    const r = await api.login(demoData.mobile_number, demoData.pin);
-                    auth.save(r.access_token, r.user);
-                    nav("/dashboard");
+                    finish(await api.demoLogin());   // seeds & signs in as Ayush Patel
                   } catch (e) {
-                    try {
-                      await api.register(demoData);
-                      const r = await api.login(demoData.mobile_number, demoData.pin);
-                      auth.save(r.access_token, r.user);
-                      nav("/dashboard");
-                    } catch (err) {
-                      import("react-hot-toast").then((m) => m.default.error("Demo login failed"));
-                    }
+                    import("react-hot-toast").then((m) => m.default.error("Demo login failed"));
                   } finally {
                     setBusy(false);
                   }

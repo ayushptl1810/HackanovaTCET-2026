@@ -41,6 +41,8 @@ export const api = {
     const res = await request("/api/login/citizen", { method: "POST", body: { mobile_number, pin } });
     return { ...res, user: { ...(res.user || {}), mobile_number } };
   },
+  // One-tap demo sign-in as "Ayush Patel" (seeded so every scheme is Eligible).
+  demoLogin: () => request("/api/login/demo", { method: "POST" }),
   me: () => request("/api/me", { authed: true }),
   mySchemes: (limit = 20) => request(`/api/me/schemes?limit=${limit}`, { authed: true }),
   searchSchemes: (q, limit = 12) =>
