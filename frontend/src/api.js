@@ -68,6 +68,8 @@ export const api = {
   
   // Public schemes catalog for landing page
   publicSchemes: () => request("/api/schemes/public"),
+  getSchemeById: (id) => request(`/api/schemes/detail/${id}`),
+  checkSchemes: (profile) => request("/api/schemes/check", { method: "POST", body: profile }),
 
   // DigiLocker (mock-aware: the mock consent URL carries the code, so we can
   // complete the flow client-side for the demo; real providers redirect).

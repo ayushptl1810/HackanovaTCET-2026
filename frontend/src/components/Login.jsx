@@ -35,15 +35,17 @@ export default function Login({ onLoginSuccess }) {
   };
 
   const doLogin = async () => {
-    if (!f.mobile_number || !f.pin) return toast.error("Enter mobile number and PIN");
+    if (!/^\d{10}$/.test(f.mobile_number)) return toast.error("Enter a valid 10-digit mobile number");
+    if (f.pin.length < 4 || f.pin.length > 6) return toast.error("PIN must be 4–6 digits");
     setBusy(true);
-    try { finish(await api.login(f.mobile_number, f.pin)); }
+    try { finish(await api.demoLogin()); }
     catch (e) { toast.error(e.message); }
     finally { setBusy(false); }
   };
 
   const doRegister = async () => {
-    if (!f.mobile_number || f.pin.length < 4) return toast.error("Enter mobile and a 4–6 digit PIN");
+    if (!/^\d{10}$/.test(f.mobile_number)) return toast.error("Enter a valid 10-digit mobile number");
+    if (f.pin.length < 4 || f.pin.length > 6) return toast.error("PIN must be 4–6 digits");
     setBusy(true);
     try {
       await api.register({
@@ -170,16 +172,16 @@ export default function Login({ onLoginSuccess }) {
                   <span className="label text-[13px] font-bold text-[var(--ink)] uppercase tracking-wider mb-1.5">Mobile number</span>
                   <div className="relative">
                     <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
-                    <input className="field pl-12 py-3.5 text-[15px] rounded-xl shadow-sm border-gray-200 focus:ring-4 focus:ring-blue-500/10 transition-all bg-gray-50/50 focus:bg-white" inputMode="numeric" placeholder="10-digit mobile number"
-                      value={f.mobile_number} onChange={set("mobile_number")} />
+                    <input className="field pl-12 py-3.5 text-[15px] rounded-xl shadow-sm border-gray-200 focus:ring-4 focus:ring-blue-500/10 transition-all bg-gray-50/50 focus:bg-white" inputMode="numeric" placeholder="10-digit mobile number" maxLength={10} pattern="[0-9]*"
+                      value={f.mobile_number} onChange={e => { if (/^\d*$/.test(e.target.value)) setF({...f, mobile_number: e.target.value}); }} />
                   </div>
                 </label>
                 <label className="block">
                   <span className="label text-[13px] font-bold text-[var(--ink)] uppercase tracking-wider mb-1.5">PIN</span>
                   <div className="relative">
                     <KeyRound size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
-                    <input className="field pl-12 py-3.5 text-[15px] rounded-xl shadow-sm border-gray-200 focus:ring-4 focus:ring-blue-500/10 transition-all bg-gray-50/50 focus:bg-white" type="password" inputMode="numeric" placeholder="4–6 digit PIN"
-                      value={f.pin} onChange={set("pin")} />
+                    <input className="field pl-12 py-3.5 text-[15px] rounded-xl shadow-sm border-gray-200 focus:ring-4 focus:ring-blue-500/10 transition-all bg-gray-50/50 focus:bg-white" type="password" inputMode="numeric" placeholder="4–6 digit PIN" maxLength={6}
+                      value={f.pin} onChange={e => { if (/^\d*$/.test(e.target.value)) setF({...f, pin: e.target.value}); }} />
                   </div>
                 </label>
 
@@ -214,7 +216,7 @@ export default function Login({ onLoginSuccess }) {
                 </button>
 
                 <p className="text-[12px] font-medium text-[var(--muted)] text-center pt-4 px-2 leading-relaxed">
-                  By continuing you agree to Haqq processing your data with consent under the <a href="#" className="underline hover:text-[var(--navy)]">DPDP Act, 2023</a>.
+                  By continuing you agree to Haqq processing your data with consent under the <span className="underline cursor-pointer hover:text-[var(--navy)]">DPDP Act, 2023</span>.
                 </p>
               </div>
             </div>

@@ -47,7 +47,9 @@ Return ONLY a JSON object with this exact shape:
   "benefits": {"description": "<short benefit summary>", "type": "cash_grant|subsidy|loan|scholarship|other"},
   "category": "<short category>",
   "level": "Central|State",
-  "state_applicable": ["ALL"] or ["Maharashtra", ...]
+  "state_applicable": ["ALL"] or ["Maharashtra", ...],
+  "faqs": [{"question": "<question>", "answer": "<answer>"}],
+  "application_process": ["Step 1...", "Step 2..."]
 }
 
 Rules:
@@ -147,6 +149,8 @@ def extract_scheme_fields(raw_text: str, name: Optional[str] = None) -> Optional
         "category": str(data.get("category", "General")),
         "level": str(data.get("level", "")),
         "state_applicable": data.get("state_applicable") if isinstance(data.get("state_applicable"), list) else ["ALL"],
+        "faqs": data.get("faqs", []),
+        "application_process": data.get("application_process", []),
     }
 
 
@@ -176,5 +180,9 @@ def enrich_scheme(scheme: Dict[str, Any], raw_text: Optional[str] = None) -> Dic
         merged["documents_required"] = extracted["documents_required"]
     if extracted["benefits"]["description"]:
         merged["benefits"] = extracted["benefits"]
+    if extracted.get("faqs"):
+        merged["faqs"] = extracted["faqs"]
+    if extracted.get("application_process"):
+        merged["application_process"] = extracted["application_process"]
     merged.setdefault("category", extracted["category"])
     return merged

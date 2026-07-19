@@ -66,8 +66,8 @@ export default function Home() {
               Haqq is your personal AI agent designed to spread knowledge about welfare schemes. It finds what you qualify for, fetches your documents, and automatically fills out applications on your behalf.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
-              <Link to={loggedIn ? "/dashboard" : "/login"} className="btn btn-primary btn-lg group shadow-blue-900/10 hover:shadow-blue-900/20">
-                {loggedIn ? "Go to my dashboard" : "Find my schemes"} 
+              <Link to={loggedIn ? "/dashboard" : "/find"} className="btn btn-primary btn-lg group shadow-blue-900/10 hover:shadow-blue-900/20">
+                {loggedIn ? "Go to my dashboard" : "Find schemes for you"} 
                 <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
               </Link>
               <a href="#schemes" className="btn btn-outline btn-lg bg-white/50 backdrop-blur-sm">Browse catalog</a>

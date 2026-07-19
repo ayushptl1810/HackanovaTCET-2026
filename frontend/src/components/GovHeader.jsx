@@ -12,11 +12,16 @@ export default function GovHeader() {
   const loggedIn = auth.isLoggedIn();
   const [open, setOpen] = useState(false);
 
-  const logout = () => { auth.clear(); nav("/"); };
+  const logout = () => {
+    auth.clear();
+    // Notify App.jsx in the same tab (storage event only fires cross-tab)
+    window.dispatchEvent(new Event("storage"));
+    nav("/");
+  };
 
   const navItems = [
     { label: "Home", to: "/" },
-    { label: "Schemes", to: loggedIn ? "/dashboard" : "/#schemes" },
+    { label: "Browse Schemes", to: "/schemes" },
     { label: "How it works", to: "/#how" },
     { label: "About", to: "/#about" },
   ];

@@ -73,3 +73,12 @@ async def get_public_schemes():
     from services.scheme_cache import get_schemes
     schemes = get_schemes()
     return {"success": True, "count": len(schemes), "schemes": schemes}
+
+@schemes_router.get("/detail/{scheme_id}")
+async def get_scheme_by_id(scheme_id: str):
+    from services.scheme_cache import get_schemes
+    schemes = get_schemes()
+    for s in schemes:
+        if s.get("scheme_id") == scheme_id:
+            return {"success": True, "scheme": s}
+    return {"success": False, "error": "Scheme not found"}
