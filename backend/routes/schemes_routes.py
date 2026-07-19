@@ -66,3 +66,10 @@ async def check_eligibility(p: RelativeProfile, limit: int = 12):
             for r in results
         ],
     }
+
+@schemes_router.get("/public")
+async def get_public_schemes():
+    """Return all cached schemes for the public landing page."""
+    from services.scheme_cache import get_schemes
+    schemes = get_schemes()
+    return {"success": True, "count": len(schemes), "schemes": schemes}

@@ -313,7 +313,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen flex flex-col bg-[var(--bg)]">
       <GovHeader />
-      <main className="flex-1 wrap py-10">
+      <main className="flex-1 wrap pt-4 pb-10">
         {/* Greeting + profile strip */}
         <div className="glass-card p-6 md:p-8 flex flex-wrap items-center justify-between gap-6 rounded-[24px]">
           <div>

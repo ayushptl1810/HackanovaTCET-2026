@@ -1,203 +1,213 @@
-import { Link } from "react-router-dom";
+import { useState, useEffect, useMemo } from "react";
+import { Link, useLocation } from "react-router-dom";
 import {
   Search, FileCheck2, FilePlus2, Phone, ShieldCheck, Languages,
-  ArrowRight, BadgeIndianRupee, UserCheck, CheckCircle2,
+  ArrowRight, BadgeIndianRupee, UserCheck, CheckCircle2, Bot, Layers
 } from "lucide-react";
 import GovHeader from "./GovHeader";
 import GovFooter from "./GovFooter";
-import { auth } from "../api";
-
-const features = [
-  { icon: Search, title: "Discover eligible schemes",
-    desc: "Answer a few details and instantly see the Central and State welfare schemes you actually qualify for — no jargon, no guesswork." },
-  { icon: FileCheck2, title: "Fetch documents automatically",
-    desc: "Securely pull your Aadhaar, PAN and certificates from DigiLocker with your consent — no scanning, no queues." },
-  { icon: FilePlus2, title: "Apply with ease",
-    desc: "Haqq pre-fills applications from your profile and documents, so form-filling becomes a few taps instead of hours." },
-  { icon: Phone, title: "Works over a phone call",
-    desc: "No smartphone or literacy needed — call in and speak your need in your own language to find your schemes." },
-];
-
-const steps = [
-  { n: 1, title: "Tell us about yourself", desc: "Age, income, occupation — once. Your details stay private and consented." },
-  { n: 2, title: "See what you're entitled to", desc: "We match you to schemes and show exactly why you're eligible." },
-  { n: 3, title: "Fetch documents & apply", desc: "Pull documents from DigiLocker and submit a pre-filled application." },
-];
-
-const stats = [
-  { value: "3,000+", label: "Welfare schemes" },
-  { value: "22", label: "Languages supported" },
-  { value: "₹0", label: "Cost to citizens" },
-];
+import { auth, api } from "../api";
 
 export default function Home() {
   const loggedIn = auth.isLoggedIn();
+  const location = useLocation();
+  const [schemes, setSchemes] = useState([]);
+  const [activeCategory, setActiveCategory] = useState("All");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.publicSchemes();
+        setSchemes(res.schemes || []);
+      } catch (e) {
+        console.error("Failed to load public schemes", e);
+      }
+    })();
+  }, []);
+
+  // Handle smooth scrolling for hash links
+  useEffect(() => {
+    if (location.hash) {
+      const el = document.querySelector(location.hash);
+      if (el) el.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [location]);
+
+  const categories = useMemo(() => {
+    const cats = new Set(schemes.map(s => s.category).filter(Boolean));
+    return ["All", ...Array.from(cats)].slice(0, 8); // Limit to top categories for UI
+  }, [schemes]);
+
+  const displayedSchemes = useMemo(() => {
+    let filtered = schemes;
+    if (activeCategory !== "All") {
+      filtered = schemes.filter(s => s.category === activeCategory);
+    }
+    return filtered.slice(0, 9); // Show up to 9 on landing page
+  }, [schemes, activeCategory]);
+
   return (
     <div className="min-h-screen flex flex-col bg-[var(--bg)] selection:bg-blue-100">
       <GovHeader />
 
       {/* ---------------------------------------------------------- Hero */}
-      <section className="relative overflow-hidden bg-white hero-grid pb-20 pt-10 md:pt-20">
+      <section className="relative overflow-hidden bg-white hero-grid pb-20 pt-4 md:pt-8">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/50 to-white pointer-events-none" />
         <div className="wrap grid lg:grid-cols-2 gap-12 items-center relative z-10">
           <div className="fade-up">
             <span className="badge badge-info mb-6 bg-blue-50/80 border-blue-100 backdrop-blur-sm px-4 py-1.5 shadow-sm">
-              <ShieldCheck size={16} /> Consent-based · Secure · Multilingual
+              <ShieldCheck size={16} /> Autonomous AI Agent · Secure
             </span>
             <h1 className="font-heading text-[2.5rem] md:text-6xl font-extrabold leading-[1.1] text-[var(--ink)]">
               Know your <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-orange-600">Haqq</span>.<br />
-              Claim what is <span className="text-[var(--navy)]">rightfully yours.</span>
+              Let the AI do the work.
             </h1>
             <p className="mt-6 text-lg md:text-xl text-[var(--muted)] max-w-xl leading-relaxed">
-              Millions of eligible citizens never receive the welfare they deserve — simply
-              because finding and applying is hard. Haqq finds the schemes you qualify for,
-              fetches your documents, and helps you apply — in your language.
+              Haqq is your personal AI agent designed to spread knowledge about welfare schemes. It finds what you qualify for, fetches your documents, and automatically fills out applications on your behalf.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
               <Link to={loggedIn ? "/dashboard" : "/login"} className="btn btn-primary btn-lg group shadow-blue-900/10 hover:shadow-blue-900/20">
                 {loggedIn ? "Go to my dashboard" : "Find my schemes"} 
                 <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
               </Link>
-              <a href="#how" className="btn btn-outline btn-lg bg-white/50 backdrop-blur-sm">How it works</a>
-            </div>
-            <div className="mt-10 flex flex-wrap gap-x-8 gap-y-4 text-sm font-medium text-[var(--body)]">
-              <span className="flex items-center gap-2"><Languages size={18} className="text-blue-500" /> 22 languages</span>
-              <span className="flex items-center gap-2"><Phone size={18} className="text-blue-500" /> Call-in access</span>
-              <span className="flex items-center gap-2"><UserCheck size={18} className="text-blue-500" /> Real eligibility check</span>
+              <a href="#schemes" className="btn btn-outline btn-lg bg-white/50 backdrop-blur-sm">Browse catalog</a>
             </div>
           </div>
 
-          {/* Hero preview card */}
           <div className="fade-up lg:justify-self-end w-full max-w-md" style={{ animationDelay: '150ms' }}>
-            <div className="glass-card rounded-[24px] p-6 md:p-8">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2 text-sm font-bold text-[var(--navy)]">
-                  <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center">
-                    <BadgeIndianRupee size={18} className="text-blue-600" />
-                  </div>
-                  Schemes matched to you
-                </div>
-                <span className="badge badge-ok shadow-sm px-3 py-1">3 eligible</span>
+            <div className="glass-card rounded-[24px] p-6 md:p-8 border border-blue-100/50 bg-gradient-to-br from-blue-50/30 to-white">
+              <div className="flex items-center gap-3 text-sm font-bold text-blue-600 mb-6 bg-blue-50 p-3 rounded-xl border border-blue-100/50">
+                <Bot size={24} /> Haqq Sahayak AI Agent
               </div>
-              <div className="space-y-3">
-                {[
-                  { name: "Post-Matric Scholarship", tag: "ok" },
-                  { name: "Skill Loan Scheme", tag: "ok" },
-                  { name: "Income-based Housing Support", tag: "warn" },
-                ].map((s) => (
-                  <div key={s.name}
-                    className="flex items-center justify-between rounded-xl border border-white/60 bg-white/60 backdrop-blur-md px-4 py-3.5 shadow-sm transition-all hover:bg-white hover:shadow-md cursor-default">
-                    <span className="font-semibold text-[var(--ink)] text-sm">{s.name}</span>
-                    <span className={`badge ${s.tag === "ok" ? "badge-ok" : "badge-warn"}`}>
-                      {s.tag === "ok" ? "Eligible" : "Needs info"}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-5 rounded-xl bg-gradient-to-r from-orange-50 to-orange-100/50 border border-orange-100 p-4 text-sm font-medium text-orange-900 flex gap-3 shadow-inner">
-                <span className="text-xl">🔊</span> 
-                <span>“पैसा मेरी बेटी की पढ़ाई के लिए” → matched to scholarships, instantly.</span>
-              </div>
+              <p className="text-[15px] font-medium text-[var(--body)] leading-relaxed">
+                "Namaste! I am the Haqq AI agent. You don't have to navigate confusing government portals anymore. Just tell me what you need, and I will automatically fetch your DigiLocker documents and submit the forms on your behalf."
+              </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* -------------------------------------------------------- Stats */}
-      <section className="bg-white border-y border-[var(--line)]">
-        <div className="wrap grid grid-cols-3 divide-x divide-[var(--line-strong)] py-8 md:py-10">
-          {stats.map((s) => (
-            <div key={s.label} className="text-center px-4 hover:scale-105 transition-transform duration-300">
-              <div className="font-heading text-3xl md:text-5xl font-extrabold text-[var(--navy)] tracking-tight">{s.value}</div>
-              <div className="text-xs md:text-sm font-medium text-[var(--muted)] mt-2 uppercase tracking-wider">{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* ----------------------------------------------------- Public Schemes */}
+      <section className="bg-[var(--surface-2)] border-y border-[var(--line)] py-16 md:py-24" id="schemes">
+        <div className="wrap">
+          <div className="text-center max-w-2xl mx-auto fade-up">
+            <span className="eyebrow bg-white border border-[var(--line)] px-3 py-1 rounded-full shadow-sm">Welfare Catalog</span>
+            <h2 className="font-heading text-3xl md:text-4xl font-bold mt-4">
+              Explore Available Schemes
+            </h2>
+            <p className="text-[var(--muted)] text-lg mt-4 leading-relaxed">
+              Browse the vast array of welfare schemes provided by Central and State governments. Log in to let our AI agent check your eligibility and apply for you.
+            </p>
+          </div>
 
-      {/* ----------------------------------------------------- Features */}
-      <section className="wrap py-16 md:py-24" id="about">
-        <div className="text-center max-w-2xl mx-auto fade-up">
-          <span className="eyebrow bg-blue-50 px-3 py-1 rounded-full">What Haqq does</span>
-          <h2 className="font-heading text-3xl md:text-4xl font-bold mt-4">
-            One place for every right you're entitled to
-          </h2>
-          <p className="text-[var(--muted)] text-lg mt-4 leading-relaxed">
-            Haqq bridges the last mile between citizens and welfare — discovery, documents, and application.
-          </p>
-        </div>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 mt-16">
-          {features.map((f, i) => (
-            <div key={f.title} className="card card-hover p-6 md:p-8 rounded-[20px]" style={{ animationDelay: `${i * 100}ms` }}>
-              <div className="w-14 h-14 rounded-2xl bg-blue-50/80 text-blue-600 border border-blue-100
-                flex items-center justify-center shadow-inner mb-6">
-                <f.icon size={26} strokeWidth={2.5} />
+          <div className="mt-10 flex flex-wrap justify-center gap-2 fade-up" style={{ animationDelay: '100ms' }}>
+            {categories.map(c => (
+              <button key={c} onClick={() => setActiveCategory(c)}
+                className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${
+                  activeCategory === c 
+                    ? "bg-[var(--navy)] text-white shadow-md scale-105" 
+                    : "bg-white text-[var(--muted)] hover:text-[var(--ink)] border border-[var(--line)]"
+                }`}>
+                {c}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 mt-10 fade-up" style={{ animationDelay: '200ms' }}>
+            {displayedSchemes.map((s) => (
+              <div key={s.scheme_id} className="card card-hover p-6 rounded-[20px] flex flex-col bg-white border-[var(--line)] border">
+                <div className="flex-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-orange-600 bg-orange-50 px-2 py-1 rounded-md mb-3 inline-block">
+                    {s.category || "General"}
+                  </span>
+                  <h3 className="font-heading text-lg font-bold text-[var(--ink)] leading-snug">{s.name}</h3>
+                  <p className="mt-3 text-[14px] font-medium text-[var(--muted)] line-clamp-2">
+                    {s.benefit_amount || "Financial and social support benefits provided by the government."}
+                  </p>
+                </div>
+                <div className="mt-6 pt-4 border-t border-[var(--line)]">
+                  <Link to="/login" className="text-[13px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 group">
+                    Sign in to apply <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                  </Link>
+                </div>
               </div>
-              <h3 className="font-heading text-lg font-bold">{f.title}</h3>
-              <p className="mt-3 text-[15px] text-[var(--muted)] leading-relaxed">{f.desc}</p>
+            ))}
+          </div>
+          {schemes.length > 9 && (
+            <div className="text-center mt-10">
+              <Link to="/login" className="btn btn-outline bg-white">View all {schemes.length} schemes</Link>
             </div>
-          ))}
+          )}
         </div>
       </section>
 
       {/* --------------------------------------------------- How it works */}
-      <section className="bg-[var(--surface-2)]" id="how">
-        <div className="wrap py-16 md:py-24">
-          <div className="text-center max-w-2xl mx-auto">
-            <span className="eyebrow bg-white border border-[var(--line)] px-3 py-1 rounded-full shadow-sm">Simple process</span>
-            <h2 className="font-heading text-3xl md:text-4xl font-bold mt-4">How Haqq works</h2>
+      <section className="wrap py-16 md:py-24" id="how">
+        <div className="text-center max-w-2xl mx-auto fade-up">
+          <span className="eyebrow bg-blue-50 px-3 py-1 rounded-full text-blue-600">The Process</span>
+          <h2 className="font-heading text-3xl md:text-4xl font-bold mt-4">
+            An agent that works automatically for you
+          </h2>
+          <p className="text-[var(--muted)] text-lg mt-4 leading-relaxed">
+            Haqq completely automates the painful process of claiming your entitlements. Our AI agent does the heavy lifting so you don't have to.
+          </p>
+        </div>
+        
+        <div className="grid gap-10 md:grid-cols-3 mt-16 relative">
+          <div className="hidden md:block absolute top-10 left-[16%] right-[16%] h-0.5 bg-gradient-to-r from-transparent via-[var(--line-strong)] to-transparent" />
+          
+          <div className="text-center relative group">
+            <div className="mx-auto w-20 h-20 rounded-2xl bg-white border border-blue-200 text-blue-600 flex items-center justify-center shadow-sm relative z-10">
+              <Search size={32} />
+            </div>
+            <h3 className="font-heading mt-6 text-xl font-bold">1. Agent discovers your rights</h3>
+            <p className="mt-3 text-[15px] text-[var(--muted)] max-w-xs mx-auto leading-relaxed">
+              The AI agent scans thousands of schemes across state and central governments, instantly verifying your eligibility based on your simple profile.
+            </p>
           </div>
-          <div className="grid gap-10 md:grid-cols-3 mt-16 relative">
-            {/* Connecting line for desktop */}
-            <div className="hidden md:block absolute top-10 left-[16%] right-[16%] h-0.5 bg-gradient-to-r from-transparent via-[var(--line-strong)] to-transparent" />
-            
-            {steps.map((s) => (
-              <div key={s.n} className="text-center relative group">
-                <div className="mx-auto w-20 h-20 rounded-2xl bg-white border border-[var(--line-strong)] text-[var(--navy)]
-                  flex items-center justify-center text-3xl font-extrabold shadow-sm group-hover:shadow-md group-hover:border-blue-200 group-hover:text-blue-600 group-hover:-translate-y-1 transition-all duration-300 relative z-10">
-                  {s.n}
-                </div>
-                <h3 className="font-heading mt-6 text-xl font-bold">{s.title}</h3>
-                <p className="mt-3 text-[15px] text-[var(--muted)] max-w-xs mx-auto leading-relaxed">{s.desc}</p>
-              </div>
-            ))}
+
+          <div className="text-center relative group">
+            <div className="mx-auto w-20 h-20 rounded-2xl bg-white border border-blue-200 text-blue-600 flex items-center justify-center shadow-sm relative z-10">
+              <Layers size={32} />
+            </div>
+            <h3 className="font-heading mt-6 text-xl font-bold">2. Agent fetches documents</h3>
+            <p className="mt-3 text-[15px] text-[var(--muted)] max-w-xs mx-auto leading-relaxed">
+              With your one-time consent, the agent automatically securely fetches your Aadhaar, income certificates, and cast certificates directly from DigiLocker.
+            </p>
           </div>
-          <div className="text-center mt-16">
-            <Link to={loggedIn ? "/dashboard" : "/login"} className="btn btn-saffron btn-lg px-8 py-4 text-lg shadow-orange-500/20 hover:shadow-orange-500/40">
-              Get started <ArrowRight size={20} className="ml-1" />
-            </Link>
+
+          <div className="text-center relative group">
+            <div className="mx-auto w-20 h-20 rounded-2xl bg-white border border-blue-200 text-blue-600 flex items-center justify-center shadow-sm relative z-10">
+              <Bot size={32} />
+            </div>
+            <h3 className="font-heading mt-6 text-xl font-bold">3. Agent auto-fills the forms</h3>
+            <p className="mt-3 text-[15px] text-[var(--muted)] max-w-xs mx-auto leading-relaxed">
+              The AI agent maps your document data to complex government forms, filling them out automatically on your behalf. You just review and hit submit.
+            </p>
           </div>
         </div>
       </section>
 
-      {/* ------------------------------------------------------- CTA band */}
-      <section className="wrap py-16 md:py-24">
-        <div className="glass-card overflow-hidden rounded-[24px] relative">
-          <div className="absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-b from-orange-400 to-orange-600" />
-          <div className="grid md:grid-cols-2 bg-white/40">
-            <div className="p-8 md:p-12 border-b md:border-b-0 md:border-r border-white/50">
-              <h2 className="font-heading text-3xl md:text-4xl font-bold leading-tight">Welfare should reach everyone.</h2>
-              <p className="mt-4 text-[var(--muted)] text-lg leading-relaxed">
-                Whether you have a smartphone or just a basic phone, Haqq meets you where you are —
-                in the language you speak, with the documents you already have.
-              </p>
-              <Link to={loggedIn ? "/dashboard" : "/login"} className="btn btn-primary mt-8">
-                {loggedIn ? "Open my dashboard" : "Check my eligibility"} <ArrowRight size={18} />
-              </Link>
+      {/* ----------------------------------------------------- About */}
+      <section className="bg-[var(--surface-2)] py-16 md:py-24" id="about">
+        <div className="wrap">
+          <div className="glass-card overflow-hidden rounded-[24px] border border-[var(--line)] shadow-sm bg-white p-8 md:p-16 text-center max-w-4xl mx-auto fade-up">
+            <div className="w-16 h-16 rounded-full bg-orange-50 text-orange-600 mx-auto flex items-center justify-center mb-6">
+              <ShieldCheck size={32} />
             </div>
-            <div className="p-8 md:p-12 flex flex-col justify-center bg-white/20">
-              <ul className="space-y-5">
-                {[
-                  "Encrypted PIN — your mobile number is never stored in the clear.",
-                  "Documents fetched only with your explicit consent (DPDP Act, 2023).",
-                  "Transparent eligibility — see exactly why you qualify.",
-                  "Free forever for every citizen of India.",
-                ].map((t) => (
-                  <li key={t} className="flex gap-4 text-[15px] font-medium text-[var(--body)] bg-white/50 p-3 rounded-xl border border-white/50 shadow-sm">
-                    <CheckCircle2 size={20} className="text-green-600 shrink-0 mt-0.5" /> {t}
-                  </li>
-                ))}
-              </ul>
+            <h2 className="font-heading text-3xl md:text-4xl font-bold leading-tight text-[var(--ink)]">
+              About the Haqq Initiative
+            </h2>
+            <div className="mt-6 text-[16px] md:text-lg text-[var(--muted)] leading-relaxed space-y-4 max-w-2xl mx-auto">
+              <p>
+                This is a project dedicated to spreading knowledge about different government schemes and ensuring welfare reaches every citizen. 
+              </p>
+              <p>
+                Haqq is a website powered by a state-of-the-art AI agent that does the work on your behalf. Instead of you having to search for schemes, figure out if you're eligible, gather documents, and fill out endless forms, the agent handles the entire process for you automatically.
+              </p>
+              <p>
+                By breaking down language barriers and technological hurdles, we ensure that no citizen is left behind.
+              </p>
             </div>
           </div>
         </div>

@@ -63,6 +63,9 @@ export const api = {
   // Check eligibility for a family member (no account needed)
   checkRelative: (profile) =>
     request("/api/schemes/check", { method: "POST", body: profile }),
+  
+  // Public schemes catalog for landing page
+  publicSchemes: () => request("/api/schemes/public"),
 
   // DigiLocker (mock-aware: the mock consent URL carries the code, so we can
   // complete the flow client-side for the demo; real providers redirect).
@@ -77,4 +80,14 @@ export const api = {
       method: "POST",
       body: { messages, lang, token: auth.token() || null },
     }),
+  transcribe: async (audioBlob) => {
+    const formData = new FormData();
+    formData.append("file", audioBlob, "audio.webm");
+    const res = await fetch("/api/assistant/transcribe", {
+      method: "POST",
+      body: formData,
+    });
+    if (!res.ok) throw new Error("Transcription failed");
+    return res.json();
+  }
 };

@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Optional
 
 import requests
 import jwt
-from fastapi import APIRouter
+from fastapi import APIRouter, UploadFile, File
 from pydantic import BaseModel
 
 from core.config import settings
@@ -56,7 +56,7 @@ class ChatResponse(BaseModel):
     reply: str
     suggestions: List[str] = []
     grounded: bool = False
-
+    reply_lang: str = "en-IN"
 
 class ExplainRequest(BaseModel):
     scheme_id: str
@@ -134,33 +134,51 @@ are entitled to, and guide them to fetch documents (DigiLocker) and apply.
 
 Rules:
 - Be brief and plain. Short sentences. No jargon. Assume low digital literacy.
-- Reply in the SAME language the citizen writes in (Hindi, Marathi, Tamil, Bengali,
-  English, Hinglish...). If they write Hindi in Latin script, reply the same way.
+- CRITICAL: The citizen's UI is set to {ui_lang}. NO MATTER WHAT language was used previously in this conversation, you MUST reply in EXACTLY the same language and script as the user's VERY LAST message.
+  - If their LAST message is in English, you MUST reply in English.
+  - If their LAST message is in Hindi (Devanagari), reply in Hindi (Devanagari).
+  - If their LAST message is in Hinglish, reply in Hinglish.
+  - If it is a short generic greeting or unclear, default to {ui_lang}.
 - Only discuss the schemes listed in the context below. NEVER invent a scheme, a
   benefit amount, an eligibility rule, or a deadline. If unsure, say you are not sure
   and suggest the "Describe your need" search or visiting a nearby CSC centre.
 - When relevant, nudge the next concrete step: connect DigiLocker, use auto-fill,
   or complete profile details that unlock more schemes.
-- Keep replies under ~90 words unless the citizen asks for detail."""
+- Keep replies under ~90 words unless the citizen asks for detail.
+- You MUST output your response as a valid JSON object matching this schema:
+{
+  "reply": "your message here",
+  "reply_lang": "The BCP-47 language code of your reply (e.g., en-IN, hi-IN, mr-IN, ta-IN, bn-IN)",
+  "suggestions": ["short followup 1", "short followup 2", "short followup 3"]
+}"""
 
 
-def _call_groq(messages: List[Dict[str, str]]) -> Optional[str]:
+def _call_groq(messages: List[Dict[str, str]], json_mode: bool = False) -> Any:
     if not settings.groq_api_key:
         return None
     try:
+        req_json = {"model": settings.groq_model, "temperature": 0.3,
+                    "max_tokens": 400, "messages": messages}
+        if json_mode:
+            req_json["response_format"] = {"type": "json_object"}
+            
         resp = requests.post(
             f"{settings.groq_base_url.rstrip('/')}/chat/completions",
             headers={"Authorization": f"Bearer {settings.groq_api_key}",
                      "Content-Type": "application/json"},
-            json={"model": settings.groq_model, "temperature": 0.3,
-                  "max_tokens": 400, "messages": messages},
+            json=req_json,
             timeout=45,
         )
         if resp.status_code != 200:
             logger.error("Groq assistant HTTP %s: %s", resp.status_code, resp.text[:200])
             return None
-        return resp.json()["choices"][0]["message"]["content"].strip()
-    except (requests.RequestException, KeyError, IndexError) as exc:
+            
+        content = resp.json()["choices"][0]["message"]["content"].strip()
+        if json_mode:
+            import json
+            return json.loads(content)
+        return content
+    except Exception as exc:
         logger.error("Groq assistant call failed: %s", exc)
         return None
 
@@ -207,8 +225,9 @@ async def assistant_chat(req: ChatRequest):
         f"{_profile_line(grounding.get('profile'))}\n\n"
         f"{_schemes_block(grounding.get('schemes') or [])}"
     )
+    system_prompt = _SYSTEM.replace("{ui_lang}", LANG_NAMES.get(req.lang, "English"))
     llm_messages = [
-        {"role": "system", "content": _SYSTEM},
+        {"role": "system", "content": system_prompt},
         {"role": "system", "content": "CONTEXT (for grounding, do not repeat verbatim):\n" + context_block},
     ]
     # carry recent conversation (cap to last 10 turns)
@@ -216,11 +235,21 @@ async def assistant_chat(req: ChatRequest):
         role = "assistant" if m.role == "assistant" else "user"
         llm_messages.append({"role": role, "content": m.content})
 
-    reply = _call_groq(llm_messages) or _fallback_reply(user_text, grounding)
+    llm_resp = _call_groq(llm_messages, json_mode=True)
+    if llm_resp and isinstance(llm_resp, dict):
+        reply = llm_resp.get("reply", "")
+        reply_lang = llm_resp.get("reply_lang", "en-IN")
+        suggestions = llm_resp.get("suggestions", _suggestions(grounding))
+    else:
+        reply = _fallback_reply(user_text, grounding)
+        reply_lang = "en-IN"
+        suggestions = _suggestions(grounding)
+
     return ChatResponse(
         reply=reply,
-        suggestions=_suggestions(grounding),
+        suggestions=suggestions,
         grounded=bool(grounding.get("profile")),
+        reply_lang=reply_lang
     )
 
 
@@ -252,3 +281,19 @@ async def explain_scheme(req: ExplainRequest):
     ]
     reply = _call_groq(messages) or f"{scheme.get('name')}: {benefit}"
     return {"reply": reply, "scheme_id": req.scheme_id}
+
+@assistant_router.post("/transcribe")
+async def transcribe_audio(file: UploadFile = File(...)):
+    """Transcribe audio from the frontend using Sarvam ASR."""
+    from services.sarvam_service import SarvamASRService
+    audio_bytes = await file.read()
+    content_type = file.content_type or "audio/webm"
+    filename = file.filename or "audio.webm"
+    
+    transcript, detected = SarvamASRService().transcribe_detailed(
+        audio_bytes=audio_bytes, 
+        language="unknown", 
+        filename=filename, 
+        content_type=content_type
+    )
+    return {"transcript": transcript, "language": detected}

@@ -16,7 +16,7 @@ export default function GovHeader() {
 
   const navItems = [
     { label: "Home", to: "/" },
-    { label: "Schemes", to: loggedIn ? "/dashboard" : "/login" },
+    { label: "Schemes", to: loggedIn ? "/dashboard" : "/#schemes" },
     { label: "How it works", to: "/#how" },
     { label: "About", to: "/#about" },
   ];

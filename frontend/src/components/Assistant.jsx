@@ -53,12 +53,12 @@ export default function Assistant() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, busy, open]);
 
-  const speak = useCallback((text) => {
+  const speak = useCallback((text, langCode) => {
     if (!canTTS) return;
     try {
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = codeRef.current;
+      u.lang = langCode || codeRef.current;
       u.rate = 0.98;
       window.speechSynthesis.speak(u);
     } catch { /* ignore */ }
@@ -76,7 +76,7 @@ export default function Assistant() {
       const reply = r.reply || "Sorry, I couldn't respond just now.";
       setMessages((m) => [...m, { role: "assistant", content: reply }]);
       if (Array.isArray(r.suggestions) && r.suggestions.length) setSuggestions(r.suggestions);
-      if (voiceOn) speak(reply);
+      if (voiceOn) speak(reply, r.reply_lang);
     } catch (e) {
       setMessages((m) => [...m, { role: "assistant", content: "I'm having trouble connecting. Please try again in a moment." }]);
     } finally {
@@ -85,32 +85,57 @@ export default function Assistant() {
   }, [input, busy, messages, voiceOn, speak]);
 
   // ---- Voice input (speech-to-text) ----
-  const toggleListen = useCallback(() => {
-    if (!SR) return;
-    if (listening) { recogRef.current?.stop(); return; }
-    const recog = new SR();
-    recogRef.current = recog;
-    recog.lang = codeRef.current;
-    recog.interimResults = true;
-    recog.continuous = false;
-    let finalText = "";
-    recog.onresult = (e) => {
-      let interim = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const t = e.results[i][0].transcript;
-        if (e.results[i].isFinal) finalText += t; else interim += t;
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+
+  const toggleListen = useCallback(async () => {
+    if (listening) {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
       }
-      setInput(finalText || interim);
-    };
-    recog.onend = () => {
+      return;
+    }
+    
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+      
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+      
+      mediaRecorder.onstop = async () => {
+        setListening(false);
+        stream.getTracks().forEach(t => t.stop());
+        const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType || 'audio/webm' });
+        
+        setBusy(true);
+        try {
+          const data = await api.transcribe(audioBlob);
+          if (data.transcript) {
+            setInput(data.transcript);
+            setVoiceOn(true);
+            send(data.transcript);
+          } else {
+            import("react-hot-toast").then((m) => m.default.error("Could not hear you clearly."));
+          }
+        } catch (e) {
+          import("react-hot-toast").then((m) => m.default.error("Transcription failed."));
+        } finally {
+          setBusy(false);
+        }
+      };
+      
+      mediaRecorder.start();
+      setListening(true);
+      setInput("");
+    } catch (e) {
+      console.error("Mic error", e);
+      import("react-hot-toast").then((m) => m.default.error("Microphone access denied or unavailable."));
       setListening(false);
-      const t = finalText.trim();
-      if (t) { setVoiceOn(true); send(t); }   // speaking implies they want a spoken reply
-    };
-    recog.onerror = () => setListening(false);
-    setListening(true);
-    setInput("");
-    recog.start();
+    }
   }, [listening, send]);
 
   useEffect(() => () => { try { recogRef.current?.stop(); window.speechSynthesis?.cancel(); } catch {} }, []);
