@@ -46,4 +46,12 @@ export const api = {
   digilockerLogin: () => request("/api/digilocker/login", {}),
   digilockerCallback: (code, state) =>
     request(`/api/digilocker/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`, {}),
+
+  // Haqq Sahayak — grounded help assistant (chatbot + voice agent brain).
+  // Sends the current citizen token (when present) so replies are personalised.
+  chat: (messages, lang = "en") =>
+    request("/api/assistant/chat", {
+      method: "POST",
+      body: { messages, lang, token: auth.token() || null },
+    }),
 };

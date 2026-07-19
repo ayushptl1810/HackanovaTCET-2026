@@ -4,6 +4,7 @@ import { Toaster } from "react-hot-toast";
 import Home from "./components/Home";
 import Login from "./components/Login";
 import Dashboard from "./components/Dashboard";
+import Assistant from "./components/Assistant";
 import { auth } from "./api";
 
 function App() {
@@ -27,6 +28,8 @@ function App() {
         />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
+      {/* Global help chatbot + voice agent, available on every page */}
+      <Assistant />
     </Router>
   );
 }

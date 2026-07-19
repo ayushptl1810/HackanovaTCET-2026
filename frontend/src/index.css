@@ -1,84 +1,199 @@
 @import "tailwindcss";
 
-/* ------------------------------------------------------------------ */
-/* Haqq — light, Indian-government-style design system                  */
-/* ------------------------------------------------------------------ */
-:root {
-  --gov-navy: #0b3d91;      /* primary deep government blue */
-  --gov-blue: #1c6dd0;      /* interactive blue */
-  --gov-blue-dark: #08306b;
-  --saffron: #f47216;       /* tricolor saffron accent */
-  --green: #0f8a3c;         /* tricolor green accent */
-  --ink: #1f2a37;           /* body text */
-  --muted: #5b6472;         /* secondary text */
-  --bg: #f4f6fa;            /* page background */
-  --card: #ffffff;
-  --border: #dfe4ec;
-  --ring: #b9cdf0;
+/* ================================================================== */
+/*  HAQQ · Government of India welfare portal                           */
+/*  Clean · minimal · modern · light theme                             */
+/* ================================================================== */
 
-  --font-size-scale: 1;     /* controlled by A- A A+ */
+:root {
+  /* Brand + government palette --------------------------------------- */
+  /* Restrained accents — the page is mainly white; blue/orange appear   */
+  /* only in small doses (links, active states, key CTAs, thin rules).   */
+  --navy:        #12386f;   /* primary accent — used sparingly         */
+  --navy-700:    #0f2f5e;
+  --navy-600:    #1a4d8f;
+  --blue:        #1f5fc0;   /* interactive / links                     */
+  --blue-50:     #f2f6fc;
+  --blue-100:    #e2ecf9;
+
+  --saffron:     #e8681a;   /* tricolor saffron — accent only          */
+  --saffron-50:  #fdf4ee;
+  --green:       #1a7d2b;   /* tricolor green — accent only            */
+  --green-50:    #eef6ef;
+
+  /* Neutrals — the dominant surfaces are white and near-white -------- */
+  --ink:         #1a2436;   /* headings                               */
+  --body:        #414b5a;   /* body text                              */
+  --muted:       #737d8c;   /* secondary text                         */
+  --line:        #eceef2;   /* borders / dividers                     */
+  --line-strong: #dde1e8;
+  --surface:     #ffffff;   /* cards                                  */
+  --surface-2:   #f8fafc;   /* subtle fills                           */
+  --bg:          #ffffff;   /* page background — white                 */
+
+  /* Status ---------------------------------------------------------- */
+  --ok:      #138808;
+  --ok-bg:   #e9f7ea;
+  --warn:    #b25e00;
+  --warn-bg: #fff3e0;
+  --err:     #c0261f;
+  --err-bg:  #fdecec;
+
+  /* System ---------------------------------------------------------- */
+  --radius:     14px;
+  --radius-sm:  10px;
+  --radius-lg:  20px;
+  --shadow-sm:  0 1px 2px rgba(20, 28, 46, .05);
+  --shadow:     0 6px 20px -10px rgba(20, 28, 46, .14), 0 2px 6px -4px rgba(20, 28, 46, .07);
+  --shadow-lg:  0 24px 50px -20px rgba(20, 28, 46, .22);
+  --ring:       0 0 0 3px rgba(31, 95, 192, .18);
+
+  --font-scale: 1;          /* driven by A- A A+ */
 }
 
-html { font-size: calc(16px * var(--font-size-scale)); }
+html { font-size: calc(16px * var(--font-scale)); scroll-behavior: smooth; }
 
 body {
   margin: 0;
   background: var(--bg);
-  color: var(--ink);
-  font-family: "Inter", "Noto Sans Devanagari", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: var(--body);
+  font-family: "Plus Jakarta Sans", "Inter", "Noto Sans Devanagari",
+    system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Tricolor strip (saffron / white / green) */
+* { box-sizing: border-box; }
+
+h1, h2, h3, h4 { color: var(--ink); font-weight: 700; letter-spacing: -0.015em; margin: 0; }
+
+::selection { background: var(--blue-100); color: var(--navy); }
+
+/* ------------------------------------------------------------------ */
+/*  Layout                                                             */
+/* ------------------------------------------------------------------ */
+.wrap { max-width: 1200px; margin: 0 auto; padding-inline: 1.25rem; width: 100%; }
+
+.eyebrow {
+  display: inline-flex; align-items: center; gap: .5rem;
+  font-size: .72rem; font-weight: 700; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--blue);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Tricolor strip                                                     */
+/* ------------------------------------------------------------------ */
 .tricolor {
-  height: 4px;
-  background: linear-gradient(
-    to right,
-    var(--saffron) 0 33.33%,
-    #ffffff 33.33% 66.66%,
-    var(--green) 66.66% 100%
-  );
+  height: 5px;
+  background: linear-gradient(to right,
+    var(--saffron) 0 33.33%, #ffffff 33.33% 66.66%, var(--green) 66.66% 100%);
 }
 
-/* Buttons */
+/* ------------------------------------------------------------------ */
+/*  Buttons                                                            */
+/* ------------------------------------------------------------------ */
 .btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
-  font-weight: 600; border-radius: 0.5rem; cursor: pointer;
-  padding: 0.625rem 1.1rem; transition: all 0.15s ease;
-  border: 1px solid transparent; font-size: 0.95rem;
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  font: inherit; font-weight: 600; font-size: .95rem; line-height: 1;
+  padding: .72rem 1.25rem; border-radius: var(--radius-sm);
+  border: 1px solid transparent; cursor: pointer;
+  transition: transform .12s ease, background .15s ease, box-shadow .15s ease, border-color .15s ease;
+  white-space: nowrap; text-decoration: none;
 }
-.btn-primary { background: var(--gov-navy); color: #fff; }
-.btn-primary:hover { background: var(--gov-blue-dark); }
-.btn-saffron { background: var(--saffron); color: #fff; }
-.btn-saffron:hover { filter: brightness(0.94); }
-.btn-outline { background: #fff; color: var(--gov-navy); border-color: var(--border); }
-.btn-outline:hover { border-color: var(--gov-blue); background: #f0f5ff; }
-.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
 
-/* Cards */
+.btn-primary { background: var(--navy); color: #fff; box-shadow: var(--shadow-sm); }
+.btn-primary:hover:not(:disabled) { background: var(--navy-700); box-shadow: var(--shadow); }
+
+.btn-saffron { background: var(--saffron); color: #fff; box-shadow: var(--shadow-sm); }
+.btn-saffron:hover:not(:disabled) { filter: brightness(1.04); box-shadow: var(--shadow); }
+
+.btn-outline { background: #fff; color: var(--navy); border-color: var(--line-strong); }
+.btn-outline:hover:not(:disabled) { border-color: var(--blue); background: var(--blue-50); }
+
+.btn-ghost { background: transparent; color: var(--navy); }
+.btn-ghost:hover:not(:disabled) { background: var(--blue-50); }
+
+.btn-sm { padding: .5rem .85rem; font-size: .85rem; }
+.btn-lg { padding: .9rem 1.6rem; font-size: 1.02rem; }
+
+/* ------------------------------------------------------------------ */
+/*  Cards                                                              */
+/* ------------------------------------------------------------------ */
 .card {
-  background: var(--card); border: 1px solid var(--border);
-  border-radius: 0.75rem; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow-sm);
 }
+.card-hover { transition: box-shadow .2s ease, transform .2s ease, border-color .2s ease; }
+.card-hover:hover { box-shadow: var(--shadow); transform: translateY(-2px); border-color: var(--line-strong); }
 
-/* Inputs */
+/* ------------------------------------------------------------------ */
+/*  Form fields                                                        */
+/* ------------------------------------------------------------------ */
 .field {
-  width: 100%; padding: 0.65rem 0.85rem; border: 1px solid var(--border);
-  border-radius: 0.5rem; font-size: 1rem; background: #fff; color: var(--ink);
-  outline: none; transition: border 0.15s, box-shadow 0.15s;
+  width: 100%; padding: .72rem .9rem; font: inherit; font-size: 1rem;
+  color: var(--ink); background: #fff;
+  border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+  outline: none; transition: border-color .15s, box-shadow .15s;
 }
-.field:focus { border-color: var(--gov-blue); box-shadow: 0 0 0 3px var(--ring); }
+.field::placeholder { color: #97a1b0; }
+.field:focus { border-color: var(--blue); box-shadow: var(--ring); }
+.field:disabled { background: var(--surface-2); }
 
-/* Eligibility badges */
-.badge { display: inline-flex; align-items: center; gap: .35rem; font-size: .75rem;
-  font-weight: 600; padding: .2rem .6rem; border-radius: 999px; }
-.badge-eligible { background: #e7f6ec; color: #0f6f31; }
-.badge-needs { background: #fff4e5; color: #9a5b00; }
-.badge-not { background: #fdeaea; color: #a12622; }
+.label { font-size: .85rem; font-weight: 600; color: var(--ink); }
 
-/* Accessibility: visible focus for keyboard users */
-a:focus-visible, button:focus-visible, .field:focus-visible {
-  outline: 2px solid var(--gov-blue); outline-offset: 2px;
+/* ------------------------------------------------------------------ */
+/*  Badges / chips                                                     */
+/* ------------------------------------------------------------------ */
+.badge {
+  display: inline-flex; align-items: center; gap: .35rem;
+  font-size: .74rem; font-weight: 600; padding: .24rem .6rem;
+  border-radius: 999px; line-height: 1; border: 1px solid transparent;
+}
+.badge-ok   { background: var(--ok-bg);   color: var(--ok);   border-color: #bfe6c1; }
+.badge-warn { background: var(--warn-bg); color: var(--warn); border-color: #f6d9a8; }
+.badge-err  { background: var(--err-bg);  color: var(--err);  border-color: #f4c4c1; }
+.badge-info { background: var(--blue-50); color: var(--blue); border-color: var(--blue-100); }
+.badge-neutral { background: var(--surface-2); color: var(--muted); border-color: var(--line); }
+
+/* ------------------------------------------------------------------ */
+/*  Header nav — light bar, dark text, subtle accent underline         */
+/* ------------------------------------------------------------------ */
+.navlink {
+  position: relative; padding: .85rem .1rem; font-size: .9rem; font-weight: 600;
+  color: var(--muted); white-space: nowrap; transition: color .15s;
+}
+.navlink:hover { color: var(--ink); }
+.navlink.active { color: var(--navy); }
+.navlink.active::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px;
+  height: 3px; background: var(--saffron); border-radius: 3px 3px 0 0;
 }
 
-.container-gov { max-width: 1180px; margin: 0 auto; padding: 0 1.25rem; }
+/* ------------------------------------------------------------------ */
+/*  Misc                                                               */
+/* ------------------------------------------------------------------ */
+.chakra-spin { animation: chakra-spin 22s linear infinite; transform-origin: center; }
+@keyframes chakra-spin { to { transform: rotate(360deg); } }
+
+.flag-wave { animation: flag-wave 5s ease-in-out infinite; transform-origin: left center; }
+@keyframes flag-wave { 0%,100% { transform: skewY(0) } 25% { transform: skewY(-1.2deg) } 75% { transform: skewY(1.2deg) } }
+
+.fade-up { animation: fade-up .5s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes fade-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+.hero-grid {
+  background-image:
+    radial-gradient(rgba(26,95,208,.06) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Accessibility: visible keyboard focus */
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 2px solid var(--blue); outline-offset: 2px;
+}
+
+/* Thin scrollbars for nav overflow */
+.scroll-x { scrollbar-width: thin; }
+.scroll-x::-webkit-scrollbar { height: 0; }
