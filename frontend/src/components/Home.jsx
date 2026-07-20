@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  Search, ShieldCheck, ArrowRight, Bot, Layers, Landmark, MapPin, Grid3X3
+  Search, ShieldCheck, ArrowRight, Bot, Layers, Landmark, MapPin, Grid3X3, ChevronDown
 } from "lucide-react";
 import GovHeader from "./GovHeader";
 import GovFooter from "./GovFooter";
@@ -14,6 +14,9 @@ const EXPLORE_TABS = [
   { key: "ministries", label: "Central Ministries", icon: Landmark },
 ];
 
+// Two rows on desktop; the rest sits behind "View more".
+const TILE_PREVIEW_COUNT = 8;
+
 export default function Home() {
   const { t } = useLang();
   const loggedIn = auth.isLoggedIn();
@@ -21,6 +24,7 @@ export default function Home() {
   const navigate = useNavigate();
   const [schemes, setSchemes] = useState([]);
   const [tab, setTab] = useState("categories");
+  const [showAll, setShowAll] = useState(false);
   const [query, setQuery] = useState("");
 
   useEffect(() => {
@@ -81,7 +85,8 @@ export default function Home() {
       .sort((a, b) => b.count - a.count);
   }, [schemes]);
 
-  const tiles = tab === "categories" ? categoryTiles : tab === "states" ? stateTiles : ministryTiles;
+  const allTiles = tab === "categories" ? categoryTiles : tab === "states" ? stateTiles : ministryTiles;
+  const tiles = showAll ? allTiles : allTiles.slice(0, TILE_PREVIEW_COUNT);
 
   const submitSearch = (e) => {
     e.preventDefault();
@@ -179,7 +184,7 @@ export default function Home() {
             {EXPLORE_TABS.map(({ key, label, icon: Icon }) => (
               <button
                 key={key}
-                onClick={() => setTab(key)}
+                onClick={() => { setTab(key); setShowAll(false); }}
                 className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition-all ${
                   tab === key
                     ? "bg-[var(--navy)] text-white shadow-md"
@@ -219,9 +224,22 @@ export default function Home() {
             ))}
           </div>
 
-          <div className="text-center mt-10">
-            <Link to="/schemes" className="btn btn-outline bg-white">
+          <div className="text-center mt-10 flex flex-wrap justify-center gap-3">
+            {allTiles.length > TILE_PREVIEW_COUNT && (
+              <button
+                onClick={() => setShowAll(v => !v)}
+                className="btn btn-outline bg-white group"
+              >
+                {showAll ? "Show less" : `View more (${allTiles.length - TILE_PREVIEW_COUNT})`}
+                <ChevronDown
+                  size={16}
+                  className={`transition-transform ${showAll ? "rotate-180" : ""}`}
+                />
+              </button>
+            )}
+            <Link to="/schemes" className="btn btn-primary">
               {t("home.viewAll")} {schemes.length} {t("common.schemes")}
+              <ArrowRight size={16} />
             </Link>
           </div>
         </div>
