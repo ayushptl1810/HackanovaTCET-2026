@@ -72,6 +72,11 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     groq_base_url: str = "https://api.groq.com/openai/v1"
     groq_model: str = "llama-3.3-70b-versatile"
+    # Tried in order when the primary model returns 429 (daily token cap).
+    groq_fallback_models: List[str] = [
+        "llama-3.1-8b-instant",
+        "gemma2-9b-it",
+    ]
 
     # --- Ingestion scheduler (live refresh) ---
     ingestion_enabled: bool = False       # set true to auto-crawl on a schedule

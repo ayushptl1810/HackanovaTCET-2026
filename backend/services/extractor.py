@@ -19,6 +19,8 @@ allowed fields/operators before use.
 
 import json
 import logging
+import re
+import time
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -26,6 +28,8 @@ import requests
 from core.config import settings
 
 logger = logging.getLogger(__name__)
+
+_MAX_RETRY_WAIT = 60.0  # seconds; longer means the daily quota is exhausted
 
 _ALLOWED_FIELDS = {"income", "age", "gender", "occupation", "state"}
 _ALLOWED_OPERATORS = {
@@ -61,31 +65,62 @@ Rules:
 - Output valid JSON only. No prose, no markdown."""
 
 
-def _call_groq(user_content: str) -> Optional[Dict[str, Any]]:
+def _retry_after_seconds(resp: "requests.Response") -> float:
+    """Groq reports the exact wait in the body ('try again in 4.33s') and often
+    in Retry-After. Honour it so bulk ingestion doesn't burn through the quota."""
+    hdr = resp.headers.get("Retry-After")
+    if hdr:
+        try:
+            return float(hdr)
+        except ValueError:
+            pass
+    m = re.search(r"try again in ([\d.]+)\s*(ms|s)", resp.text)
+    if m:
+        val = float(m.group(1))
+        return val / 1000 if m.group(2) == "ms" else val
+    return 5.0
+
+
+def _call_groq(user_content: str, max_retries: int = 5) -> Optional[Dict[str, Any]]:
     if not settings.groq_api_key:
         logger.warning("GROQ_API_KEY not configured; extractor disabled")
         return None
-    try:
-        resp = requests.post(
-            f"{settings.groq_base_url.rstrip('/')}/chat/completions",
-            headers={
-                "Authorization": f"Bearer {settings.groq_api_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": settings.groq_model,
-                "temperature": 0,
-                "response_format": {"type": "json_object"},
-                "messages": [
-                    {"role": "system", "content": _SYSTEM_PROMPT},
-                    {"role": "user", "content": user_content},
-                ],
-            },
-            timeout=60,
-        )
-    except requests.RequestException as exc:
-        logger.error("Groq request failed: %s", exc)
-        return None
+
+    for attempt in range(max_retries):
+        try:
+            resp = requests.post(
+                f"{settings.groq_base_url.rstrip('/')}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {settings.groq_api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": settings.groq_model,
+                    "temperature": 0,
+                    "response_format": {"type": "json_object"},
+                    "messages": [
+                        {"role": "system", "content": _SYSTEM_PROMPT},
+                        {"role": "user", "content": user_content},
+                    ],
+                },
+                timeout=60,
+            )
+        except requests.RequestException as exc:
+            logger.error("Groq request failed: %s", exc)
+            return None
+
+        if resp.status_code == 429 and attempt < max_retries - 1:
+            wait = _retry_after_seconds(resp) + 0.5
+            if wait > _MAX_RETRY_WAIT:
+                # Multi-minute waits mean the daily quota is gone, not a burst
+                # limit — fail fast so callers fall back instead of hanging.
+                logger.warning("Groq quota exhausted (retry-after %.0fs); giving up", wait)
+                return None
+            logger.info("Groq rate limited; retrying in %.1fs (attempt %d)", wait, attempt + 1)
+            time.sleep(wait)
+            continue
+        break
+
     if resp.status_code != 200:
         logger.error("Groq HTTP %s: %s", resp.status_code, resp.text[:300])
         return None
@@ -136,7 +171,11 @@ def extract_scheme_fields(raw_text: str, name: Optional[str] = None) -> Optional
     if not data:
         return None
 
-    rules = _validate_rules(data.get("eligibility_rules"))
+    from services.rule_extractor import sanitize_rules
+
+    # Validate shape, then normalise free-text values onto the profile
+    # vocabulary — an unsatisfiable mandatory rule would deny an eligible citizen.
+    rules = sanitize_rules(_validate_rules(data.get("eligibility_rules")))
     benefits = data.get("benefits") if isinstance(data.get("benefits"), dict) else {}
     docs = data.get("documents_required")
     return {

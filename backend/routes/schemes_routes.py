@@ -82,3 +82,32 @@ async def get_scheme_by_id(scheme_id: str):
         if s.get("scheme_id") == scheme_id:
             return {"success": True, "scheme": s}
     return {"success": False, "error": "Scheme not found"}
+
+
+@schemes_router.get("/{scheme_id}/verify")
+async def verify_scheme(scheme_id: str):
+    """
+    Cross-check a scheme's document/eligibility requirements against its live
+    myScheme.gov.in page, for the auto-fill agent's "review" step. Falls back
+    to unverified (never errors) when the scheme has no myScheme URL or the
+    live fetch/parse fails — the caller uses its own offline checklist then.
+    """
+    from starlette.concurrency import run_in_threadpool
+
+    from services.scheme_cache import get_schemes
+    from services.scheme_verify_service import verify_scheme_live
+
+    schemes = get_schemes()
+    scheme = next((s for s in schemes if s.get("scheme_id") == scheme_id), None)
+    if not scheme:
+        return {"success": False, "error": "Scheme not found"}
+
+    # verify_scheme_live renders a real page with Selenium and can take several
+    # seconds — run it in the threadpool so it doesn't block the event loop.
+    result = await run_in_threadpool(
+        verify_scheme_live,
+        scheme_id=scheme_id,
+        name=scheme.get("name", ""),
+        official_portal_url=scheme.get("official_portal_url", ""),
+    )
+    return {"success": True, **result}

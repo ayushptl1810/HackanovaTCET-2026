@@ -12,6 +12,7 @@ import AutofillAgent from "./AutofillAgent";
 import HelpCentreFinder from "./HelpCentreFinder";
 import ExplainModal from "./ExplainModal";
 import RelativeCheckModal from "./RelativeCheckModal";
+import GrievanceModal from "./GrievanceModal";
 import LifeEvents from "./LifeEvents";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { api, auth } from "../api";
@@ -224,6 +225,7 @@ export default function Dashboard() {
   const [agentScheme, setAgentScheme] = useState(null);
   const [explainScheme, setExplainScheme] = useState(null);
   const [showRelative, setShowRelative] = useState(false);
+  const [grievanceApp, setGrievanceApp] = useState(null);
 
   const loadApplications = async () => {
     try { const r = await api.listApplications(); setApplications(r.applications || []); }
@@ -253,13 +255,13 @@ export default function Dashboard() {
     finally { setSearching(false); }
   };
 
-  const raiseGrievance = async (app) => {
-    const msg = window.prompt(`Describe your issue with "${app.scheme_name}" (${app.ticket_id}):`, "");
-    if (msg === null) return;
+  const submitGrievance = async (msg) => {
+    const app = grievanceApp;
     try {
       const r = await api.raiseGrievance(app.ticket_id, msg || "");
       toast.success(`Grievance registered — ${r.grievance_id}`);
       loadApplications();
+      setGrievanceApp(null);
     } catch (e) { toast.error(e.message || "Could not raise grievance"); }
   };
 
@@ -391,7 +393,7 @@ export default function Dashboard() {
                   <span className="badge bg-[var(--navy)] text-white ml-auto px-3 py-1 shadow-sm">{applications.length}</span>
                 </div>
                 <div className="grid sm:grid-cols-2 gap-4">
-                  {applications.map((a) => <ApplicationRow key={a.ticket_id} app={a} onGrievance={raiseGrievance} />)}
+                  {applications.map((a) => <ApplicationRow key={a.ticket_id} app={a} onGrievance={setGrievanceApp} />)}
                 </div>
               </div>
             )}
@@ -514,6 +516,9 @@ export default function Dashboard() {
 
       {/* Check for a family member */}
       {showRelative && <RelativeCheckModal onClose={() => setShowRelative(false)} />}
+
+      {/* Raise grievance */}
+      <GrievanceModal app={grievanceApp} onClose={() => setGrievanceApp(null)} onSubmit={submitGrievance} />
 
       <GovFooter />
     </div>

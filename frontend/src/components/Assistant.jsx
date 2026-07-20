@@ -39,6 +39,7 @@ export default function Assistant() {
 
   const recogRef = useRef(null);
   const scrollRef = useRef(null);
+  const taRef = useRef(null);
   const langRef = useRef(lang);
   langRef.current = lang;
   const codeRef = useRef(code);
@@ -52,6 +53,14 @@ export default function Assistant() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, busy, open]);
+
+  // auto-grow the composer with its content, capped by max-h-24
+  useEffect(() => {
+    const el = taRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 96)}px`;
+  }, [input, open]);
 
   const speak = useCallback((text, langCode) => {
     if (!canTTS) return;
@@ -215,7 +224,7 @@ export default function Assistant() {
           )}
 
           {/* input */}
-          <div className="p-3 flex items-end gap-2">
+          <div className="p-3 flex items-end gap-2 border-t border-[var(--line)] bg-white">
             {SR && (
               <button onClick={toggleListen}
                 title={listening ? "Stop" : "Speak"}
@@ -224,14 +233,17 @@ export default function Assistant() {
                 {listening ? <MicOff size={18} /> : <Mic size={18} />}
               </button>
             )}
-            <textarea
-              rows={1}
-              className="field !py-2.5 resize-none max-h-24"
-              placeholder={listening ? "Listening…" : "Type or speak your question…"}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-            />
+            <div className="grow min-w-0">
+              <textarea
+                ref={taRef}
+                rows={1}
+                className="field !py-2 !px-3 !text-[0.9rem] block w-full min-w-0 resize-none overflow-y-auto leading-6 max-h-24"
+                placeholder={listening ? "Listening…" : "Type or speak your question…"}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+              />
+            </div>
             <button onClick={() => send()} disabled={busy || !input.trim()}
               className="shrink-0 w-10 h-10 rounded-full bg-[var(--navy)] text-white flex items-center justify-center hover:bg-[var(--navy-700)] disabled:opacity-50">
               <Send size={17} />

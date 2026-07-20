@@ -1,20 +1,27 @@
 import { useState, useEffect, useMemo } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  Search, FileCheck2, FilePlus2, Phone, ShieldCheck, Languages,
-  ArrowRight, BadgeIndianRupee, UserCheck, CheckCircle2, Bot, Layers
+  Search, ShieldCheck, ArrowRight, Bot, Layers, Landmark, MapPin, Grid3X3
 } from "lucide-react";
 import GovHeader from "./GovHeader";
 import GovFooter from "./GovFooter";
 import { auth, api } from "../api";
 import { useLang } from "../lib/i18n";
 
+const EXPLORE_TABS = [
+  { key: "categories", label: "Categories", icon: Grid3X3 },
+  { key: "states", label: "States/UTs", icon: MapPin },
+  { key: "ministries", label: "Central Ministries", icon: Landmark },
+];
+
 export default function Home() {
   const { t } = useLang();
   const loggedIn = auth.isLoggedIn();
   const location = useLocation();
+  const navigate = useNavigate();
   const [schemes, setSchemes] = useState([]);
-  const [activeCategory, setActiveCategory] = useState("All");
+  const [tab, setTab] = useState("categories");
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -35,111 +42,188 @@ export default function Home() {
     }
   }, [location]);
 
-  const categories = useMemo(() => {
-    const cats = new Set(schemes.map(s => s.category).filter(Boolean));
-    return ["All", ...Array.from(cats)].slice(0, 8); // Limit to top categories for UI
+  const centralCount = useMemo(
+    () => schemes.filter(s => s.level === "Central").length,
+    [schemes]
+  );
+
+  // Category → count, biggest first (the myScheme "Explore by category" grid).
+  const categoryTiles = useMemo(() => {
+    const counts = new Map();
+    schemes.forEach(s => {
+      const c = s.category || "General";
+      counts.set(c, (counts.get(c) || 0) + 1);
+    });
+    return Array.from(counts, ([name, count]) => ({ name, count, param: "category" }))
+      .sort((a, b) => b.count - a.count);
   }, [schemes]);
 
-  const displayedSchemes = useMemo(() => {
-    let filtered = schemes;
-    if (activeCategory !== "All") {
-      filtered = schemes.filter(s => s.category === activeCategory);
-    }
-    return filtered.slice(0, 9); // Show up to 9 on landing page
-  }, [schemes, activeCategory]);
+  // Each state card shows its own schemes plus the central ones it can claim.
+  const stateTiles = useMemo(() => {
+    const counts = new Map();
+    schemes.forEach(s => {
+      (s.state_applicable || []).forEach(st => {
+        if (st === "ALL") return;
+        counts.set(st, (counts.get(st) || 0) + 1);
+      });
+    });
+    return Array.from(counts, ([name, count]) => ({ name, count, param: "state" }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [schemes]);
+
+  const ministryTiles = useMemo(() => {
+    const counts = new Map();
+    schemes.filter(s => s.level === "Central").forEach(s => {
+      const m = s.ministry || "Government of India";
+      counts.set(m, (counts.get(m) || 0) + 1);
+    });
+    return Array.from(counts, ([name, count]) => ({ name, count, param: "ministry" }))
+      .sort((a, b) => b.count - a.count);
+  }, [schemes]);
+
+  const tiles = tab === "categories" ? categoryTiles : tab === "states" ? stateTiles : ministryTiles;
+
+  const submitSearch = (e) => {
+    e.preventDefault();
+    navigate(`/schemes${query.trim() ? `?q=${encodeURIComponent(query.trim())}` : ""}`);
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--bg)] selection:bg-blue-100">
       <GovHeader />
 
-      {/* ---------------------------------------------------------- Hero */}
-      <section className="relative overflow-hidden bg-white hero-grid pb-20 pt-4 md:pt-8">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/50 to-white pointer-events-none" />
-        <div className="wrap grid lg:grid-cols-2 gap-12 items-center relative z-10">
-          <div className="fade-up">
-            <span className="badge badge-info mb-6 bg-blue-50/80 border-blue-100 backdrop-blur-sm px-4 py-1.5 shadow-sm">
-              <ShieldCheck size={16} /> {t("home.badge")}
-            </span>
-            <h1 className="font-heading text-[2.5rem] md:text-6xl font-extrabold leading-[1.1] text-[var(--ink)]">
-              {t("home.heroKnow")} <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-orange-600">Haqq</span>.<br />
-              {t("home.heroRest")}
-            </h1>
-            <p className="mt-6 text-lg md:text-xl text-[var(--muted)] max-w-xl leading-relaxed">
-              {t("home.heroSub")}
-            </p>
-            <div className="mt-8 flex flex-wrap gap-4">
-              <Link to={loggedIn ? "/dashboard" : "/find"} className="btn btn-primary btn-lg group shadow-blue-900/10 hover:shadow-blue-900/20">
-                {loggedIn ? t("home.ctaDashboard") : t("home.ctaFind")}
-                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-              </Link>
-              <a href="#schemes" className="btn btn-outline btn-lg bg-white/50 backdrop-blur-sm">{t("home.ctaBrowse")}</a>
+      {/* ------------------------------------------------- Hero / search band */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-[#eaf3ff] via-[#f4f9ff] to-[#fff6ee] border-b border-[var(--line)]">
+        <div className="absolute inset-0 hero-grid opacity-60 pointer-events-none" />
+        <div className="wrap relative z-10 py-14 md:py-20 text-center">
+          <span className="badge badge-info bg-white/80 border-blue-100 backdrop-blur-sm px-4 py-1.5 shadow-sm">
+            <ShieldCheck size={16} /> {t("home.badge")}
+          </span>
+
+          <h1 className="font-heading mt-6 text-[2.25rem] md:text-[3.5rem] font-extrabold leading-[1.1] text-[var(--ink)]">
+            {t("home.heroKnow")}{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-orange-600">Haqq</span>.
+            <br />
+            {t("home.heroRest")}
+          </h1>
+
+          <p className="mt-5 text-base md:text-lg text-[var(--muted)] max-w-2xl mx-auto leading-relaxed">
+            {t("home.heroSub")}
+          </p>
+
+          {/* Search bar — the front door, same as myScheme's */}
+          <form onSubmit={submitSearch} className="mt-8 max-w-2xl mx-auto">
+            <div className="flex items-center gap-2 bg-white rounded-2xl border-2 border-[var(--line-strong)] shadow-lg shadow-blue-900/5 p-2 focus-within:border-blue-500 transition-colors">
+              <Search size={20} className="ml-3 text-[var(--muted)] shrink-0" />
+              <input
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Enter scheme name to search..."
+                aria-label="Search schemes"
+                className="flex-1 bg-transparent py-2.5 text-[15px] font-medium outline-none placeholder:text-[var(--muted)]"
+              />
+              <button type="submit" className="btn btn-primary rounded-xl px-5 py-2.5 shrink-0">
+                Search
+              </button>
             </div>
+          </form>
+
+          <div className="mt-7 flex flex-wrap justify-center gap-3">
+            <Link
+              to={loggedIn ? "/dashboard" : "/find"}
+              className="btn btn-primary btn-lg group shadow-blue-900/10 hover:shadow-blue-900/20"
+            >
+              {loggedIn ? t("home.ctaDashboard") : t("home.ctaFind")}
+              <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+            </Link>
+            <a href="#explore" className="btn btn-outline btn-lg bg-white/70 backdrop-blur-sm">
+              {t("home.ctaBrowse")}
+            </a>
           </div>
 
-          <div className="fade-up lg:justify-self-end w-full max-w-md" style={{ animationDelay: '150ms' }}>
-            <div className="glass-card rounded-[24px] p-6 md:p-8 border border-blue-100/50 bg-gradient-to-br from-blue-50/30 to-white">
-              <div className="flex items-center gap-3 text-sm font-bold text-blue-600 mb-6 bg-blue-50 p-3 rounded-xl border border-blue-100/50">
-                <Bot size={24} /> {t("home.agentName")}
-              </div>
-              <p className="text-[15px] font-medium text-[var(--body)] leading-relaxed">
-                {t("home.agentQuote")}
-              </p>
+          {/* Live counts pulled from the catalog itself */}
+          {schemes.length > 0 && (
+            <div className="mt-10 flex flex-wrap justify-center gap-8 md:gap-14 text-center">
+              {[
+                { n: schemes.length, l: t("common.schemes") },
+                { n: centralCount, l: "Central Schemes" },
+                { n: stateTiles.length, l: "States & UTs" },
+                { n: categoryTiles.length, l: "Categories" },
+              ].map(x => (
+                <div key={x.l}>
+                  <div className="font-heading text-2xl md:text-3xl font-extrabold text-[var(--navy)]">{x.n}</div>
+                  <div className="text-[13px] font-bold text-[var(--muted)] mt-1">{x.l}</div>
+                </div>
+              ))}
             </div>
-          </div>
+          )}
         </div>
       </section>
 
-      {/* ----------------------------------------------------- Public Schemes */}
-      <section className="bg-[var(--surface-2)] border-y border-[var(--line)] py-16 md:py-24" id="schemes">
-        <div className="wrap">
-          <div className="text-center max-w-2xl mx-auto fade-up">
-            <span className="eyebrow bg-white border border-[var(--line)] px-3 py-1 rounded-full shadow-sm">{t("home.catalogEyebrow")}</span>
-            <h2 className="font-heading text-3xl md:text-4xl font-bold mt-4">
-              {t("home.catalogTitle")}
-            </h2>
-            <p className="text-[var(--muted)] text-lg mt-4 leading-relaxed">
-              {t("home.catalogSub")}
-            </p>
+      {/* ------------------------------------------------ Agent introduction */}
+      <section className="wrap py-10">
+        <div className="glass-card rounded-[24px] p-6 md:p-8 border border-blue-100/60 bg-gradient-to-br from-blue-50/40 to-white max-w-4xl mx-auto fade-up">
+          <div className="flex items-center gap-3 text-sm font-bold text-blue-600 mb-4">
+            <Bot size={24} /> {t("home.agentName")}
           </div>
+          <p className="text-[15px] md:text-base font-medium text-[var(--body)] leading-relaxed">
+            {t("home.agentQuote")}
+          </p>
+        </div>
+      </section>
 
-          <div className="mt-10 flex flex-wrap justify-center gap-2 fade-up" style={{ animationDelay: '100ms' }}>
-            {categories.map(c => (
-              <button key={c} onClick={() => setActiveCategory(c)}
-                className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${
-                  activeCategory === c 
-                    ? "bg-[var(--navy)] text-white shadow-md scale-105" 
+      {/* --------------------------------------------------- Explore schemes */}
+      <section className="bg-[var(--surface-2)] border-y border-[var(--line)] py-16 md:py-20" id="explore">
+        <div className="wrap">
+          <div className="flex flex-wrap justify-center gap-2 fade-up">
+            {EXPLORE_TABS.map(({ key, label, icon: Icon }) => (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition-all ${
+                  tab === key
+                    ? "bg-[var(--navy)] text-white shadow-md"
                     : "bg-white text-[var(--muted)] hover:text-[var(--ink)] border border-[var(--line)]"
-                }`}>
-                {c}
+                }`}
+              >
+                <Icon size={16} /> {label}
               </button>
             ))}
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 mt-10 fade-up" style={{ animationDelay: '200ms' }}>
-            {displayedSchemes.map((s) => (
-              <div key={s.scheme_id} className="card card-hover p-6 rounded-[20px] flex flex-col bg-white border-[var(--line)] border">
-                <div className="flex-1">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-orange-600 bg-orange-50 px-2 py-1 rounded-md mb-3 inline-block">
-                    {s.category || "General"}
-                  </span>
-                  <h3 className="font-heading text-lg font-bold text-[var(--ink)] leading-snug">{s.name}</h3>
-                  <p className="mt-3 text-[14px] font-medium text-[var(--muted)] line-clamp-2">
-                    {s.benefit_amount || t("home.defaultBenefit")}
-                  </p>
-                </div>
-                <div className="mt-6 pt-4 border-t border-[var(--line)]">
-                  <Link to="/login" className="text-[13px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 group">
-                    {t("common.signInApply")} <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                  </Link>
-                </div>
-              </div>
+          <h2 className="font-heading text-3xl md:text-4xl font-bold mt-8 text-center leading-tight">
+            Explore schemes of
+            <br />
+            <span className="text-blue-600">
+              {tab === "categories" ? "every category" : tab === "states" ? "States/UTs" : "Central Ministries"}
+            </span>
+          </h2>
+          <p className="text-[var(--muted)] text-center mt-4 max-w-2xl mx-auto leading-relaxed">
+            {t("home.catalogSub")}
+          </p>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mt-10 fade-up" style={{ animationDelay: "120ms" }}>
+            {tiles.map(tile => (
+              <Link
+                key={tile.name}
+                to={`/schemes?${tile.param}=${encodeURIComponent(tile.name)}`}
+                className="card card-hover bg-white border border-[var(--line)] rounded-[18px] p-5 flex flex-col gap-2 border-l-4 border-l-blue-500 hover:border-l-orange-500 transition-colors"
+              >
+                <h3 className="font-heading text-[15px] font-bold text-[var(--ink)] leading-snug line-clamp-2">
+                  {tile.name}
+                </h3>
+                <span className="text-[13px] font-bold text-[var(--muted)] mt-auto">
+                  <span className="text-blue-600">{tile.count}</span> {tile.count === 1 ? "Scheme" : "Schemes"}
+                </span>
+              </Link>
             ))}
           </div>
-          {schemes.length > 9 && (
-            <div className="text-center mt-10">
-              <Link to="/login" className="btn btn-outline bg-white">{t("home.viewAll")} {schemes.length} {t("common.schemes")}</Link>
-            </div>
-          )}
+
+          <div className="text-center mt-10">
+            <Link to="/schemes" className="btn btn-outline bg-white">
+              {t("home.viewAll")} {schemes.length} {t("common.schemes")}
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -154,39 +238,23 @@ export default function Home() {
             {t("home.processSub")}
           </p>
         </div>
-        
+
         <div className="grid gap-10 md:grid-cols-3 mt-16 relative">
           <div className="hidden md:block absolute top-10 left-[16%] right-[16%] h-0.5 bg-gradient-to-r from-transparent via-[var(--line-strong)] to-transparent" />
-          
-          <div className="text-center relative group">
-            <div className="mx-auto w-20 h-20 rounded-2xl bg-white border border-blue-200 text-blue-600 flex items-center justify-center shadow-sm relative z-10">
-              <Search size={32} />
-            </div>
-            <h3 className="font-heading mt-6 text-xl font-bold">{t("home.step1Title")}</h3>
-            <p className="mt-3 text-[15px] text-[var(--muted)] max-w-xs mx-auto leading-relaxed">
-              {t("home.step1Body")}
-            </p>
-          </div>
 
-          <div className="text-center relative group">
-            <div className="mx-auto w-20 h-20 rounded-2xl bg-white border border-blue-200 text-blue-600 flex items-center justify-center shadow-sm relative z-10">
-              <Layers size={32} />
+          {[
+            { Icon: Search, title: t("home.step1Title"), body: t("home.step1Body") },
+            { Icon: Layers, title: t("home.step2Title"), body: t("home.step2Body") },
+            { Icon: Bot, title: t("home.step3Title"), body: t("home.step3Body") },
+          ].map(({ Icon, title, body }) => (
+            <div key={title} className="text-center relative group">
+              <div className="mx-auto w-20 h-20 rounded-2xl bg-white border border-blue-200 text-blue-600 flex items-center justify-center shadow-sm relative z-10">
+                <Icon size={32} />
+              </div>
+              <h3 className="font-heading mt-6 text-xl font-bold">{title}</h3>
+              <p className="mt-3 text-[15px] text-[var(--muted)] max-w-xs mx-auto leading-relaxed">{body}</p>
             </div>
-            <h3 className="font-heading mt-6 text-xl font-bold">{t("home.step2Title")}</h3>
-            <p className="mt-3 text-[15px] text-[var(--muted)] max-w-xs mx-auto leading-relaxed">
-              {t("home.step2Body")}
-            </p>
-          </div>
-
-          <div className="text-center relative group">
-            <div className="mx-auto w-20 h-20 rounded-2xl bg-white border border-blue-200 text-blue-600 flex items-center justify-center shadow-sm relative z-10">
-              <Bot size={32} />
-            </div>
-            <h3 className="font-heading mt-6 text-xl font-bold">{t("home.step3Title")}</h3>
-            <p className="mt-3 text-[15px] text-[var(--muted)] max-w-xs mx-auto leading-relaxed">
-              {t("home.step3Body")}
-            </p>
-          </div>
+          ))}
         </div>
       </section>
 

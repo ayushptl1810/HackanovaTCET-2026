@@ -108,21 +108,24 @@ export function buildApplicant({ profile, user, digilocker, docs }) {
 // "how much was automated" accounting). Fields with no data are left for the
 // citizen to complete manually.
 export function applicationFields(scheme, applicant) {
-  const F = (label, value, source, required = true) => ({ label, value: value || "", source, required, auto: !!value });
+  // `key` is the stable identifier the form UI switches on (input type, mask,
+  // validation) — never match on `label`, which is display text.
+  const F = (key, label, value, source, required = true) =>
+    ({ key, label, value: value || "", source, required, auto: !!value });
   const fields = [
-    F("Applicant full name", applicant.fullName, "DigiLocker · Aadhaar"),
-    F("Mobile number", applicant.mobile, "Verified login"),
-    F("Date of birth", applicant.dob, "DigiLocker · Aadhaar"),
-    F("Gender", applicant.gender, "Profile"),
-    F("Aadhaar number", applicant.aadhaar, "DigiLocker · Aadhaar"),
-    F("PAN number", applicant.pan, "DigiLocker · PAN"),
-    F("Residential address", applicant.address, "DigiLocker · Aadhaar"),
-    F("Annual family income (₹)", applicant.annualIncome, "Profile"),
-    F("Occupation", applicant.occupation, "Profile"),
-    F("Scheme applied for", scheme?.name, "Auto"),
-    F("Category", scheme?.category, "Auto", false),
-    F("Bank account for benefit transfer", "", "Manual", true), // deliberately not auto — citizen must add
-    F("Declaration & consent", applicant.fullName ? "I agree (DPDP consent)" : "", "Consent"),
+    F("fullName", "Applicant full name", applicant.fullName, "DigiLocker · Aadhaar"),
+    F("mobile", "Mobile number", applicant.mobile, "Verified login"),
+    F("dob", "Date of birth", applicant.dob, "DigiLocker · Aadhaar"),
+    F("gender", "Gender", applicant.gender, "Profile"),
+    F("aadhaar", "Aadhaar number", applicant.aadhaar, "DigiLocker · Aadhaar"),
+    F("pan", "PAN number", applicant.pan, "DigiLocker · PAN"),
+    F("address", "Residential address", applicant.address, "DigiLocker · Aadhaar"),
+    F("income", "Annual family income (₹)", applicant.annualIncome, "Profile"),
+    F("occupation", "Occupation", applicant.occupation, "Profile"),
+    F("scheme", "Scheme applied for", scheme?.name, "Auto"),
+    F("category", "Category", scheme?.category, "Auto", false),
+    F("bank", "Bank account for benefit transfer", "", "Manual", true), // deliberately not auto — citizen must add
+    F("consent", "Declaration & consent", applicant.fullName ? "I agree (DPDP consent)" : "", "Consent"),
   ];
   return fields;
 }
@@ -223,9 +226,18 @@ export async function shareSchemes(schemes, name) {
   }
 }
 
-export function docChecklist(scheme, docs = []) {
-  const req = new Set((scheme?.documents_required || []).map((d) => String(d).toLowerCase()));
-  heuristicDocs(scheme).forEach((d) => req.add(d));
+// `liveDocuments`, when given (a non-empty array of document-id strings),
+// comes from a fresh myScheme.gov.in fetch for this exact scheme and is
+// treated as authoritative — it replaces the offline/heuristic guess instead
+// of merging with it, since it reflects what the official page currently says.
+export function docChecklist(scheme, docs = [], liveDocuments = null) {
+  let req;
+  if (Array.isArray(liveDocuments) && liveDocuments.length) {
+    req = new Set(liveDocuments.map((d) => String(d).toLowerCase()));
+  } else {
+    req = new Set((scheme?.documents_required || []).map((d) => String(d).toLowerCase()));
+    heuristicDocs(scheme).forEach((d) => req.add(d));
+  }
   const haveNames = (docs || []).map((d) => (d.name || "").toLowerCase());
   return [...req].map((slug) => {
     const kws = DOC_MATCH[slug] || [slug.split("_")[0]];

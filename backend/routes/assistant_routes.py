@@ -21,6 +21,7 @@ and speaks the reply back with the Web Speech API.
 """
 
 import logging
+import re
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -66,6 +67,30 @@ class ExplainRequest(BaseModel):
 LANG_NAMES = {
     "en": "English", "hi": "Hindi", "mr": "Marathi", "ta": "Tamil", "bn": "Bengali",
 }
+
+_LANG_BCP47 = {
+    "en": "en-IN", "hi": "hi-IN", "mr": "mr-IN", "ta": "ta-IN", "bn": "bn-IN",
+}
+
+# Unicode block → language, so we can honour the script the citizen actually typed
+# in even when the UI language selector says something else.
+_SCRIPT_RANGES = [
+    ("hi", 0x0900, 0x097F),   # Devanagari (also Marathi — UI hint disambiguates)
+    ("bn", 0x0980, 0x09FF),
+    ("ta", 0x0B80, 0x0BFF),
+]
+
+
+def _detect_lang(text: str, ui_lang: str) -> str:
+    for ch in text or "":
+        cp = ord(ch)
+        for lang, lo, hi in _SCRIPT_RANGES:
+            if lo <= cp <= hi:
+                # Devanagari is shared; trust the UI hint between hi and mr.
+                if lang == "hi" and ui_lang == "mr":
+                    return "mr"
+                return lang
+    return ui_lang if ui_lang in LANG_NAMES else "en"
 
 
 # ---------------------------------------------------------------------------
@@ -128,6 +153,64 @@ def _schemes_block(schemes: List[Dict[str, Any]]) -> str:
     return "Schemes currently matched to this citizen:\n" + "\n".join(lines)
 
 
+_STOP = {"the", "and", "for", "of", "a", "an", "scheme", "yojana", "tell", "me", "about",
+         "what", "is", "how", "do", "i", "to", "in", "my", "can", "get", "apply"}
+
+
+def _tokens(text: str) -> set:
+    return {w for w in re.findall(r"[a-z0-9]+", (text or "").lower())
+            if len(w) > 2 and w not in _STOP}
+
+
+def _find_schemes(user_text: str, limit: int = 2) -> List[Dict[str, Any]]:
+    """Full scheme records whose name best overlaps the citizen's question."""
+    q = _tokens(user_text)
+    if not q:
+        return []
+    try:
+        from services.scheme_cache import get_schemes
+        all_schemes = get_schemes()
+    except Exception as exc:
+        logger.warning("assistant: scheme cache unavailable: %s", exc)
+        return []
+    scored = []
+    for s in all_schemes:
+        overlap = len(q & _tokens(s.get("name", "")))
+        if overlap >= 2:
+            scored.append((overlap, s))
+    scored.sort(key=lambda x: -x[0])
+    return [s for _, s in scored[:limit]]
+
+
+def _detail_block(schemes: List[Dict[str, Any]]) -> str:
+    """Verbatim facts for the named scheme(s) so the model can answer specifics."""
+    if not schemes:
+        return ""
+    out = []
+    for s in schemes:
+        b = s.get("benefits", {})
+        benefit = b.get("description", "") if isinstance(b, dict) else str(b)
+        docs = ", ".join(s.get("documents_required", []) or []) or "not listed"
+        steps = s.get("application_process") or []
+        rules = []
+        for r in s.get("eligibility_rules", []) or []:
+            rules.append(f"{r.get('profile_field')} {r.get('operator')} {r.get('value')}")
+        faqs = "\n".join(f"    Q: {f.get('question')}\n    A: {f.get('answer')}"
+                         for f in (s.get("faqs") or [])[:5])
+        out.append(
+            f"SCHEME: {s.get('name')}\n"
+            f"  Level: {s.get('level')} | Ministry: {s.get('ministry')} | Category: {s.get('category')}\n"
+            f"  Benefit: {benefit}\n"
+            f"  Eligibility rules: {'; '.join(rules) or 'not listed'}\n"
+            f"  Documents required: {docs}\n"
+            f"  How to apply:\n" + "".join(f"    {i+1}. {p}\n" for i, p in enumerate(steps)) +
+            f"  Official page: {s.get('official_portal_url') or 'n/a'}\n" +
+            (f"  FAQs:\n{faqs}" if faqs else "")
+        )
+    return ("FULL DETAILS of the scheme(s) the citizen is asking about — answer from "
+            "these facts, do not say you lack information:\n\n" + "\n\n".join(out))
+
+
 _SYSTEM = """You are "Haqq Sahayak", a warm, patient assistant on an Indian government
 welfare portal. Your job: help citizens understand the rights and welfare schemes they
 are entitled to, and guide them to fetch documents (DigiLocker) and apply.
@@ -153,49 +236,84 @@ Rules:
 }"""
 
 
+def _groq_once(model: str, messages: List[Dict[str, str]], json_mode: bool) -> Any:
+    req_json = {"model": model, "temperature": 0.3,
+                "max_tokens": 700, "messages": messages}
+    if json_mode:
+        req_json["response_format"] = {"type": "json_object"}
+
+    resp = requests.post(
+        f"{settings.groq_base_url.rstrip('/')}/chat/completions",
+        headers={"Authorization": f"Bearer {settings.groq_api_key}",
+                 "Content-Type": "application/json"},
+        json=req_json,
+        timeout=45,
+    )
+    if resp.status_code != 200:
+        logger.error("Groq assistant [%s] HTTP %s: %s", model, resp.status_code, resp.text[:300])
+        # 429 = per-day/per-minute quota; signal so the caller can try a smaller model.
+        raise _Retryable() if resp.status_code == 429 else RuntimeError(resp.status_code)
+
+    content = resp.json()["choices"][0]["message"]["content"].strip()
+    if json_mode:
+        import json
+        return json.loads(content)
+    return content
+
+
+class _Retryable(Exception):
+    """Quota/rate-limit hit — worth retrying on a cheaper model."""
+
+
 def _call_groq(messages: List[Dict[str, str]], json_mode: bool = False) -> Any:
     if not settings.groq_api_key:
         return None
-    try:
-        req_json = {"model": settings.groq_model, "temperature": 0.3,
-                    "max_tokens": 400, "messages": messages}
-        if json_mode:
-            req_json["response_format"] = {"type": "json_object"}
-            
-        resp = requests.post(
-            f"{settings.groq_base_url.rstrip('/')}/chat/completions",
-            headers={"Authorization": f"Bearer {settings.groq_api_key}",
-                     "Content-Type": "application/json"},
-            json=req_json,
-            timeout=45,
-        )
-        if resp.status_code != 200:
-            logger.error("Groq assistant HTTP %s: %s", resp.status_code, resp.text[:200])
-            return None
-            
-        content = resp.json()["choices"][0]["message"]["content"].strip()
-        if json_mode:
-            import json
-            return json.loads(content)
-        return content
-    except Exception as exc:
-        logger.error("Groq assistant call failed: %s", exc)
-        return None
+    # The primary model shares one daily token budget; when it is exhausted the
+    # assistant must not silently degrade to canned text, so fall down a chain.
+    models = [settings.groq_model] + [
+        m for m in settings.groq_fallback_models if m != settings.groq_model
+    ]
+    for model in models:
+        try:
+            return _groq_once(model, messages, json_mode)
+        except _Retryable:
+            continue
+        except Exception as exc:
+            logger.error("Groq assistant [%s] failed: %s", model, exc)
+            continue
+    return None
 
 
-def _fallback_reply(user_text: str, grounding: Dict[str, Any]) -> str:
+def _fallback_reply(user_text: str, grounding: Dict[str, Any],
+                    named: Optional[List[Dict[str, Any]]] = None) -> str:
     """Deterministic reply when the LLM is unavailable — keeps the demo alive."""
+    # If they asked about a specific scheme, answer from its record rather than
+    # falling through to the generic "you look eligible for..." blurb.
+    if named:
+        s = named[0]
+        b = s.get("benefits", {})
+        benefit = (b.get("description") if isinstance(b, dict) else str(b)) or "not listed"
+        docs = ", ".join(s.get("documents_required", []) or []) or "Aadhaar"
+        steps = s.get("application_process") or []
+        first = steps[0] if steps else "Apply on the official portal."
+        return (f"{s.get('name')}.\n"
+                f"What you get: {benefit}\n"
+                f"Papers needed: {docs}\n"
+                f"First step: {first}\n"
+                f"Official page: {s.get('official_portal_url') or 'n/a'}")
     schemes = grounding.get("schemes") or []
     eligible = [s for s in schemes if s["eligibility"] == "eligible"]
+    # NOTE: match whole words — a substring test made "Scholarship" hit "hi".
+    words = set(re.findall(r"[a-z]+", user_text.lower()))
     t = user_text.lower()
-    if any(w in t for w in ("hello", "hi", "namaste", "hey", "help")):
+    if words & {"hello", "hi", "namaste", "hey", "help"}:
         if eligible:
             names = ", ".join(s["name"] for s in eligible[:3])
             return (f"Namaste! Based on your profile you look eligible for: {names}. "
                     "Open any scheme and tap ‘Auto-fill & Apply’, or ask me about any of them.")
         return ("Namaste! I can help you find welfare schemes you are entitled to. "
                 "Log in and tell me your need — for example, ‘money for my child’s study’.")
-    if any(w in t for w in ("apply", "form", "fill", "document", "digilocker")):
+    if words & {"apply", "form", "fill", "document", "documents", "digilocker"}:
         return ("To apply, first connect DigiLocker so your Aadhaar, PAN and certificates "
                 "are fetched. Then press ‘Auto-fill & Apply’ on a scheme — the agent fills "
                 "the form for you. You only review and submit.")
@@ -225,24 +343,40 @@ async def assistant_chat(req: ChatRequest):
         f"{_profile_line(grounding.get('profile'))}\n\n"
         f"{_schemes_block(grounding.get('schemes') or [])}"
     )
-    system_prompt = _SYSTEM.replace("{ui_lang}", LANG_NAMES.get(req.lang, "English"))
+    reply_in = _detect_lang(user_text, req.lang or "en")
+    system_prompt = _SYSTEM.replace("{ui_lang}", LANG_NAMES.get(reply_in, "English"))
     llm_messages = [
         {"role": "system", "content": system_prompt},
         {"role": "system", "content": "CONTEXT (for grounding, do not repeat verbatim):\n" + context_block},
     ]
+    # If the citizen named a specific scheme, hand the model that scheme's full
+    # record — without this it only has a name + one-line benefit and answers vaguely.
+    named = _find_schemes(user_text)
+    if named:
+        llm_messages.append({"role": "system", "content": _detail_block(named)})
     # carry recent conversation (cap to last 10 turns)
     for m in req.messages[-10:]:
         role = "assistant" if m.role == "assistant" else "user"
         llm_messages.append({"role": role, "content": m.content})
 
     llm_resp = _call_groq(llm_messages, json_mode=True)
-    if llm_resp and isinstance(llm_resp, dict):
-        reply = llm_resp.get("reply", "")
-        reply_lang = llm_resp.get("reply_lang", "en-IN")
-        suggestions = llm_resp.get("suggestions", _suggestions(grounding))
+    if llm_resp and isinstance(llm_resp, dict) and llm_resp.get("reply"):
+        reply = llm_resp["reply"]
+        reply_lang = llm_resp.get("reply_lang") or _LANG_BCP47.get(reply_in, "en-IN")
+        suggestions = llm_resp.get("suggestions") or _suggestions(grounding)
     else:
-        reply = _fallback_reply(user_text, grounding)
-        reply_lang = "en-IN"
+        # JSON mode failed (bad key, parse error, model quirk). Retry as plain
+        # text before dropping to the canned fallback — a real answer in prose
+        # beats a generic one.
+        plain = _call_groq(
+            llm_messages + [{"role": "system",
+                             "content": "Reply as plain text only. No JSON, no markdown."}]
+        )
+        if isinstance(plain, str) and plain.strip():
+            reply = plain.strip()
+        else:
+            reply = _fallback_reply(user_text, grounding, named)
+        reply_lang = _LANG_BCP47.get(reply_in, "en-IN")
         suggestions = _suggestions(grounding)
 
     return ChatResponse(

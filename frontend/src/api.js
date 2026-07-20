@@ -70,6 +70,9 @@ export const api = {
   publicSchemes: () => request("/api/schemes/public"),
   getSchemeById: (id) => request(`/api/schemes/detail/${id}`),
   checkSchemes: (profile) => request("/api/schemes/check", { method: "POST", body: profile }),
+  // Cross-verify a scheme's documents/eligibility against its live myScheme.gov.in
+  // page (used by the Apply-Agent before it builds the document checklist).
+  verifyScheme: (id) => request(`/api/schemes/${encodeURIComponent(id)}/verify`),
 
   // DigiLocker (mock-aware: the mock consent URL carries the code, so we can
   // complete the flow client-side for the demo; real providers redirect).
