@@ -78,6 +78,13 @@ export default function FaceGate({ open, purpose = "verify your identity", onVer
       try {
         await loadModel();
         if (cancelled) return;
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error(
+            window.isSecureContext === false
+              ? "Camera access requires HTTPS. This page is being served over an insecure connection."
+              : "Camera access isn't supported in this browser."
+          );
+        }
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "user", width: 480, height: 360 }, audio: false,
         });
