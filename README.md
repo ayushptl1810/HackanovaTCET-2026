@@ -27,19 +27,88 @@ India runs thousands of welfare schemes — scholarships, pensions, subsidies, i
 
 ## 📐 Architecture
 
-> 🚧 *Architecture diagram coming soon — reserved space below.*
+```mermaid
+flowchart TB
+    subgraph CLIENT["🖥️ CLIENT LAYER"]
+        WEB["Web App — Citizen / CSC<br/>React 19 · Vite · Tailwind<br/>Face-verification gate · jsPDF"]
+        PHONE["Phone Caller — No smartphone<br/>Keypad (DTMF) or speaks<br/>EN · HI · MR · TA · BN"]
+        CSC["CSC Operator Portal<br/>Assisted-filing dashboard"]
+    end
 
-<div align="center">
+    subgraph API["⚙️ API LAYER — FastAPI (Uvicorn)"]
+        ROUTES["REST routes + Twilio webhooks (CORS-enabled)<br/>/api/auth · /api/login · /api/citizen · /api/schemes<br/>/api/assistant · /api/voice (TwiML) · /api/digilocker · /api/kyc · /api/locate"]
+    end
 
+    subgraph SERVICES["🧩 SERVICE LAYER"]
+        AUTH["Auth Service<br/>bcrypt PIN + JWT"]
+        ENGINE["Scheme Engine<br/>Semantic search + eligibility rules"]
+        AI["AI Assistant & Extractor<br/>Groq LLM chat + rule extraction"]
+        VOICE["Voice IVR Service<br/>TwiML state machine + ASR"]
+        KYC["Identity & KYC<br/>DigiLocker OAuth (PKCE)"]
+        NOTIFY["Notifications<br/>SMS + WhatsApp"]
+        INGEST["Ingestion & Scraper<br/>BeautifulSoup/Selenium + APScheduler"]
+        LOCATOR["CSC Locator<br/>Pincode → nearest centre"]
+    end
+
+    subgraph DATA["🗄️ DATA LAYER"]
+        SQL["SQLite<br/>(SQLAlchemy + Alembic)<br/>citizens, applications, grievances"]
+        REDIS["Redis warm cache<br/>atomic refresh-swap"]
+        JSON["schemes_database.json<br/>scraped + enriched corpus"]
+    end
+
+    subgraph EXTERNAL["🌐 EXTERNAL SERVICES"]
+        TWILIO["Twilio<br/>Voice · SMS · WhatsApp"]
+        SARVAM["Sarvam<br/>ASR + TTS (regional languages)"]
+        GROQ["Groq<br/>LLM inference"]
+        DIGILOCKER["DigiLocker / Meripehchaan<br/>OAuth"]
+        KYCSANDBOX["Aadhaar / PAN<br/>KYC Sandbox"]
+        MYSCHEME["myScheme.gov.in<br/>scraped source"]
+    end
+
+    WEB --> ROUTES
+    PHONE -. "Twilio Voice webhook" .-> ROUTES
+    CSC --> ROUTES
+
+    ROUTES --> AUTH
+    ROUTES --> ENGINE
+    ROUTES --> AI
+    ROUTES --> VOICE
+    ROUTES --> KYC
+
+    AUTH --> SQL
+    ENGINE --> REDIS
+    ENGINE --> JSON
+    AI --> SQL
+    VOICE --> LOCATOR
+    VOICE --> ENGINE
+    VOICE --> NOTIFY
+    AUTH --> NOTIFY
+    LOCATOR --> JSON
+    INGEST -. "scheduled refresh" .-> JSON
+    JSON -. "cache warm" .-> REDIS
+
+    ROUTES -. "webhook / API call" .-> TWILIO
+    VOICE -. "ASR + TTS" .-> SARVAM
+    AI -. "LLM completion" .-> GROQ
+    KYC -. "OAuth flow" .-> DIGILOCKER
+    KYC -. "OTP / verify" .-> KYCSANDBOX
+    INGEST -. "crawl" .-> MYSCHEME
+    NOTIFY -. "send SMS/WhatsApp" .-> TWILIO
+
+    classDef client fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e
+    classDef api fill:#0f172a,stroke:#f97316,color:#f8fafc
+    classDef service fill:#f0fdf4,stroke:#16a34a,color:#14532d
+    classDef data fill:#f1f5f9,stroke:#475569,color:#1e293b
+    classDef external fill:#fff7ed,stroke:#ea580c,color:#7c2d12
+
+    class WEB,PHONE,CSC client
+    class ROUTES api
+    class AUTH,ENGINE,AI,VOICE,KYC,NOTIFY,INGEST,LOCATOR service
+    class SQL,REDIS,JSON data
+    class TWILIO,SARVAM,GROQ,DIGILOCKER,KYCSANDBOX,MYSCHEME external
 ```
-┌─────────────────────────────────────────────────────────┐
-│                                                           │
-│               [ ARCHITECTURE DIAGRAM HERE ]              │
-│                                                           │
-└─────────────────────────────────────────────────────────┘
-```
 
-</div>
+> Solid arrows = synchronous request/response · Dashed arrows = async jobs or third-party API calls. Note how the **Voice IVR** and **web routes** both flow through the same Scheme Engine and CSC Locator — the phone and web channels never drift out of sync because they share the same core services.
 
 **Stack at a glance:**
 
